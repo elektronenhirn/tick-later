@@ -38,7 +38,6 @@ function handleDragOver(event: DragEvent) {
 
 <template>
   <div class="todo-form">
-    <h2>Add New Todo</h2>
     <form @submit.prevent="addTodo" class="form">
       <div class="form-group">
         <label for="title">Title *</label>
@@ -89,17 +88,11 @@ function handleDragOver(event: DragEvent) {
 
 <style scoped>
 .todo-form {
-  background: white;
-  border-radius: 12px;
+  background: transparent;
+  border-radius: 0;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
-}
-
-.todo-form h2 {
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 1.5rem;
+  box-shadow: none;
+  margin-bottom: 0;
 }
 
 .form {
@@ -173,11 +166,7 @@ function handleDragOver(event: DragEvent) {
 
 @media (prefers-color-scheme: dark) {
   .todo-form {
-    background: #1f2937;
-  }
-  
-  .todo-form h2 {
-    color: #f9fafb;
+    background: transparent;
   }
   
   .form-group label {

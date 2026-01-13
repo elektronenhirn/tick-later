@@ -80,59 +80,65 @@ function handleDeleteTodo(todoId: string) {
       <div v-if="pendingTodos.length > 0" class="todo-section">
         <h3 class="section-title">Pending ({{ pendingTodos.length }})</h3>
         
-        <!-- Next 2 Hours -->
-        <div v-if="categorizedPendingTodos.next2Hours.length > 0" class="time-subsection">
-          <h4 class="subsection-title urgent">⚡ Next 2 Hours ({{ categorizedPendingTodos.next2Hours.length }})</h4>
-          <div class="todos-grid">
-            <TodoItem
-              v-for="todo in categorizedPendingTodos.next2Hours"
-              :key="todo.id"
-              :todo="todo"
-              @toggle-complete="handleToggleComplete"
-              @delete-todo="handleDeleteTodo"
-            />
+        <div class="time-grid">
+          <!-- Upper Left: Next 2 Hours -->
+          <div class="time-quadrant">
+            <h4 class="subsection-title urgent">⚡ Next 2 Hours ({{ categorizedPendingTodos.next2Hours.length }})</h4>
+            <div v-if="categorizedPendingTodos.next2Hours.length > 0" class="quadrant-todos">
+              <TodoItem
+                v-for="todo in categorizedPendingTodos.next2Hours"
+                :key="todo.id"
+                :todo="todo"
+                @toggle-complete="handleToggleComplete"
+                @delete-todo="handleDeleteTodo"
+              />
+            </div>
+            <div v-else class="empty-quadrant">No urgent todos</div>
           </div>
-        </div>
-        
-        <!-- 2-4 Hours -->
-        <div v-if="categorizedPendingTodos.next2To4Hours.length > 0" class="time-subsection">
-          <h4 class="subsection-title soon">🕐 2-4 Hours ({{ categorizedPendingTodos.next2To4Hours.length }})</h4>
-          <div class="todos-grid">
-            <TodoItem
-              v-for="todo in categorizedPendingTodos.next2To4Hours"
-              :key="todo.id"
-              :todo="todo"
-              @toggle-complete="handleToggleComplete"
-              @delete-todo="handleDeleteTodo"
-            />
+          
+          <!-- Upper Right: Tomorrow or Later -->
+          <div class="time-quadrant">
+            <h4 class="subsection-title tomorrow">📅 Tomorrow or Later ({{ categorizedPendingTodos.tomorrow.length }})</h4>
+            <div v-if="categorizedPendingTodos.tomorrow.length > 0" class="quadrant-todos">
+              <TodoItem
+                v-for="todo in categorizedPendingTodos.tomorrow"
+                :key="todo.id"
+                :todo="todo"
+                @toggle-complete="handleToggleComplete"
+                @delete-todo="handleDeleteTodo"
+              />
+            </div>
+            <div v-else class="empty-quadrant">No todos for tomorrow</div>
           </div>
-        </div>
-        
-        <!-- Tomorrow or Later (but within week) -->
-        <div v-if="categorizedPendingTodos.tomorrow.length > 0" class="time-subsection">
-          <h4 class="subsection-title tomorrow">📅 Tomorrow or Later ({{ categorizedPendingTodos.tomorrow.length }})</h4>
-          <div class="todos-grid">
-            <TodoItem
-              v-for="todo in categorizedPendingTodos.tomorrow"
-              :key="todo.id"
-              :todo="todo"
-              @toggle-complete="handleToggleComplete"
-              @delete-todo="handleDeleteTodo"
-            />
+          
+          <!-- Lower Left: 2-4 Hours -->
+          <div class="time-quadrant">
+            <h4 class="subsection-title soon">🕐 2-4 Hours ({{ categorizedPendingTodos.next2To4Hours.length }})</h4>
+            <div v-if="categorizedPendingTodos.next2To4Hours.length > 0" class="quadrant-todos">
+              <TodoItem
+                v-for="todo in categorizedPendingTodos.next2To4Hours"
+                :key="todo.id"
+                :todo="todo"
+                @toggle-complete="handleToggleComplete"
+                @delete-todo="handleDeleteTodo"
+              />
+            </div>
+            <div v-else class="empty-quadrant">No todos in 2-4 hours</div>
           </div>
-        </div>
-        
-        <!-- Next Week or Later -->
-        <div v-if="categorizedPendingTodos.nextWeek.length > 0" class="time-subsection">
-          <h4 class="subsection-title future">📆 Next Week or Later ({{ categorizedPendingTodos.nextWeek.length }})</h4>
-          <div class="todos-grid">
-            <TodoItem
-              v-for="todo in categorizedPendingTodos.nextWeek"
-              :key="todo.id"
-              :todo="todo"
-              @toggle-complete="handleToggleComplete"
-              @delete-todo="handleDeleteTodo"
-            />
+          
+          <!-- Lower Right: Next Week or Later -->
+          <div class="time-quadrant">
+            <h4 class="subsection-title future">📆 Next Week or Later ({{ categorizedPendingTodos.nextWeek.length }})</h4>
+            <div v-if="categorizedPendingTodos.nextWeek.length > 0" class="quadrant-todos">
+              <TodoItem
+                v-for="todo in categorizedPendingTodos.nextWeek"
+                :key="todo.id"
+                :todo="todo"
+                @toggle-complete="handleToggleComplete"
+                @delete-todo="handleDeleteTodo"
+              />
+            </div>
+            <div v-else class="empty-quadrant">No future todos</div>
           </div>
         </div>
       </div>
@@ -188,43 +194,69 @@ function handleDeleteTodo(todoId: string) {
   padding-bottom: 8px;
 }
 
-.time-subsection {
+.time-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
   margin-bottom: 24px;
-  padding-left: 16px;
-  border-left: 3px solid #e5e7eb;
+}
+
+.time-quadrant {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 20px;
+  border: 2px solid #e5e7eb;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
 }
 
 .subsection-title {
-  margin: 0 0 12px 0;
+  margin: 0 0 16px 0;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-bottom: 8px;
 }
 
 .subsection-title.urgent {
   color: #dc2626;
-  border-left: 3px solid #dc2626;
-  padding-left: 8px;
+  border-bottom: 2px solid #dc2626;
 }
 
 .subsection-title.soon {
   color: #ea580c;
-  border-left: 3px solid #ea580c;
-  padding-left: 8px;
+  border-bottom: 2px solid #ea580c;
 }
 
 .subsection-title.tomorrow {
   color: #2563eb;
-  border-left: 3px solid #2563eb;
-  padding-left: 8px;
+  border-bottom: 2px solid #2563eb;
 }
 
 .subsection-title.future {
   color: #059669;
-  border-left: 3px solid #059669;
-  padding-left: 8px;
+  border-bottom: 2px solid #059669;
+}
+
+.quadrant-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-grow: 1;
+}
+
+.empty-quadrant {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  color: #9ca3af;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
 }
 
 .todos-grid {
@@ -233,13 +265,26 @@ function handleDeleteTodo(todoId: string) {
   gap: 16px;
 }
 
+@media (max-width: 1024px) {
+  .time-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .time-quadrant {
+    min-height: 200px;
+    padding: 16px;
+  }
+}
+
 @media (max-width: 768px) {
   .todos-grid {
     grid-template-columns: 1fr;
   }
   
-  .time-subsection {
-    padding-left: 12px;
+  .time-quadrant {
+    min-height: 150px;
+    padding: 12px;
   }
 }
 
@@ -253,28 +298,33 @@ function handleDeleteTodo(todoId: string) {
     border-bottom-color: #4b5563;
   }
   
-  .time-subsection {
-    border-left-color: #4b5563;
+  .time-quadrant {
+    background: #1f2937;
+    border-color: #4b5563;
   }
   
   .subsection-title.urgent {
     color: #fca5a5;
-    border-left-color: #dc2626;
+    border-bottom-color: #dc2626;
   }
   
   .subsection-title.soon {
     color: #fed7aa;
-    border-left-color: #ea580c;
+    border-bottom-color: #ea580c;
   }
   
   .subsection-title.tomorrow {
     color: #93c5fd;
-    border-left-color: #2563eb;
+    border-bottom-color: #2563eb;
   }
   
   .subsection-title.future {
     color: #6ee7b7;
-    border-left-color: #059669;
+    border-bottom-color: #059669;
+  }
+  
+  .empty-quadrant {
+    color: #6b7280;
   }
 }
 </style>

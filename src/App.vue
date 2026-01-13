@@ -8,6 +8,7 @@ import TodoForm from "./components/TodoForm.vue";
 const todos = ref<Todo[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
+const showTodoForm = ref(false);
 
 async function loadTodos() {
   try {
@@ -29,6 +30,7 @@ async function handleAddTodo(todoData: { title: string; description?: string; re
       revisitAt: new Date(todoData.revisitAt).toISOString()
     });
     todos.value.push(newTodo);
+    showTodoForm.value = false; // Close modal after adding todo
   } catch (e) {
     error.value = `Failed to add todo: ${e}`;
   }
@@ -55,6 +57,14 @@ async function handleDeleteTodo(todoId: string) {
   }
 }
 
+function openTodoForm() {
+  showTodoForm.value = true;
+}
+
+function closeTodoForm() {
+  showTodoForm.value = false;
+}
+
 onMounted(() => {
   loadTodos();
 });
@@ -75,12 +85,27 @@ onMounted(() => {
     <div v-if="loading" class="loading">Loading todos...</div>
 
     <div v-else class="app-content">
-      <TodoForm @add-todo="handleAddTodo" />
       <TodoList 
         :todos="todos" 
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo" 
       />
+    </div>
+
+    <!-- Floating Add Button -->
+    <button @click="openTodoForm" class="floating-add-btn" title="Add new todo">
+      <span class="plus-icon">+</span>
+    </button>
+
+    <!-- Modal Dialog for Todo Form -->
+    <div v-if="showTodoForm" class="modal-overlay" @click="closeTodoForm">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>Add New Todo</h2>
+          <button @click="closeTodoForm" class="close-btn" title="Close">×</button>
+        </div>
+        <TodoForm @add-todo="handleAddTodo" />
+      </div>
     </div>
   </main>
 </template>
@@ -151,6 +176,133 @@ onMounted(() => {
   font-size: 1.125rem;
 }
 
+.floating-add-btn {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floating-add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 32px rgba(79, 70, 229, 0.4);
+}
+
+.floating-add-btn:active {
+  transform: scale(0.95);
+}
+
+.plus-icon {
+  color: white;
+  font-size: 2rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 0 24px;
+  margin-bottom: 16px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.5rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .floating-add-btn {
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+  }
+  
+  .plus-icon {
+    font-size: 1.75rem;
+  }
+  
+  .modal-overlay {
+    padding: 16px;
+  }
+  
+  .modal-header {
+    padding: 20px 20px 0 20px;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   .app {
     background: #0f172a;
@@ -173,6 +325,27 @@ onMounted(() => {
   
   .loading {
     color: #94a3b8;
+  }
+  
+  .modal-overlay {
+    background: rgba(0, 0, 0, 0.7);
+  }
+  
+  .modal-content {
+    background: #1f2937;
+  }
+  
+  .modal-header h2 {
+    color: #f9fafb;
+  }
+  
+  .close-btn {
+    color: #9ca3af;
+  }
+  
+  .close-btn:hover {
+    background: #374151;
+    color: #d1d5db;
   }
 }
 </style>
