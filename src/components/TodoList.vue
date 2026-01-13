@@ -96,22 +96,7 @@ function handleDeleteTodo(todoId: string) {
             <div v-else class="empty-quadrant">No urgent todos</div>
           </div>
           
-          <!-- Upper Right: Tomorrow or Later -->
-          <div class="time-quadrant">
-            <h4 class="subsection-title tomorrow">📅 Tomorrow or Later ({{ categorizedPendingTodos.tomorrow.length }})</h4>
-            <div v-if="categorizedPendingTodos.tomorrow.length > 0" class="quadrant-todos">
-              <TodoItem
-                v-for="todo in categorizedPendingTodos.tomorrow"
-                :key="todo.id"
-                :todo="todo"
-                @toggle-complete="handleToggleComplete"
-                @delete-todo="handleDeleteTodo"
-              />
-            </div>
-            <div v-else class="empty-quadrant">No todos for tomorrow</div>
-          </div>
-          
-          <!-- Lower Left: 2-4 Hours -->
+          <!-- Upper Right: 2-4 Hours -->
           <div class="time-quadrant">
             <h4 class="subsection-title soon">🕐 2-4 Hours ({{ categorizedPendingTodos.next2To4Hours.length }})</h4>
             <div v-if="categorizedPendingTodos.next2To4Hours.length > 0" class="quadrant-todos">
@@ -124,6 +109,21 @@ function handleDeleteTodo(todoId: string) {
               />
             </div>
             <div v-else class="empty-quadrant">No todos in 2-4 hours</div>
+          </div>
+          
+          <!-- Lower Left: Tomorrow or Later -->
+          <div class="time-quadrant">
+            <h4 class="subsection-title tomorrow">📅 Tomorrow or Later ({{ categorizedPendingTodos.tomorrow.length }})</h4>
+            <div v-if="categorizedPendingTodos.tomorrow.length > 0" class="quadrant-todos">
+              <TodoItem
+                v-for="todo in categorizedPendingTodos.tomorrow"
+                :key="todo.id"
+                :todo="todo"
+                @toggle-complete="handleToggleComplete"
+                @delete-todo="handleDeleteTodo"
+              />
+            </div>
+            <div v-else class="empty-quadrant">No todos for tomorrow</div>
           </div>
           
           <!-- Lower Right: Next Week or Later -->
