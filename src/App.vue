@@ -1,60 +1,196 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import type { Todo } from "./types/todo";
+import TodoList from "./components/TodoList.vue";
+import TodoForm from "./components/TodoForm.vue";
 
-const greetMsg = ref("");
-const name = ref("");
+const todos = ref<Todo[]>([]);
+const loading = ref(true);
+const error = ref<string | null>(null);
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
+async function loadTodos() {
+  try {
+    loading.value = true;
+    error.value = null;
+    todos.value = await invoke<Todo[]>("load_todos");
+  } catch (e) {
+    error.value = `Failed to load todos: ${e}`;
+  } finally {
+    loading.value = false;
+  }
 }
+
+async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string }) {
+  try {
+    const newTodo = await invoke<Todo>("save_todo", {
+      title: todoData.title,
+      description: todoData.description,
+      revisitAt: new Date(todoData.revisitAt).toISOString()
+    });
+    todos.value.push(newTodo);
+  } catch (e) {
+    error.value = `Failed to add todo: ${e}`;
+  }
+}
+
+async function handleToggleComplete(todoId: string) {
+  try {
+    await invoke<boolean>("toggle_todo_completion", { id: todoId });
+    const todo = todos.value.find(t => t.id === todoId);
+    if (todo) {
+      todo.completed = !todo.completed;
+    }
+  } catch (e) {
+    error.value = `Failed to toggle todo: ${e}`;
+  }
+}
+
+async function handleDeleteTodo(todoId: string) {
+  try {
+    await invoke("delete_todo", { id: todoId });
+    todos.value = todos.value.filter(t => t.id !== todoId);
+  } catch (e) {
+    error.value = `Failed to delete todo: ${e}`;
+  }
+}
+
+onMounted(() => {
+  loadTodos();
+});
 </script>
 
 <template>
-  <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
+  <main class="app">
+    <header class="app-header">
+      <h1>Tick Later</h1>
+      <p>Personal Todo Organizer</p>
+    </header>
 
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
+    <div v-if="error" class="error">
+      {{ error }}
+      <button @click="loadTodos" class="retry-btn">Retry</button>
     </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
 
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
+    <div v-if="loading" class="loading">Loading todos...</div>
+
+    <div v-else class="app-content">
+      <TodoForm @add-todo="handleAddTodo" />
+      <TodoList 
+        :todos="todos" 
+        @toggle-complete="handleToggleComplete"
+        @delete-todo="handleDeleteTodo" 
+      />
+    </div>
   </main>
 </template>
 
 <style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
+.app {
+  min-height: 100vh;
+  padding: 20px;
+  background: #f8fafc;
 }
 
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
+.app-header {
+  text-align: center;
+  margin-bottom: 32px;
+  padding: 20px 0;
 }
 
+.app-header h1 {
+  margin: 0 0 8px 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.app-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1.125rem;
+}
+
+.app-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.error {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.retry-btn {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.retry-btn:hover {
+  background: #b91c1c;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-size: 1.125rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app {
+    background: #0f172a;
+  }
+  
+  .app-header h1 {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    background-clip: text;
+    -webkit-background-clip: text;
+  }
+  
+  .app-header p {
+    color: #94a3b8;
+  }
+  
+  .error {
+    background: #7f1d1d;
+    color: #fca5a5;
+  }
+  
+  .loading {
+    color: #94a3b8;
+  }
+}
 </style>
 <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
-  line-height: 24px;
+  line-height: 1.5;
   font-weight: 400;
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: #1f2937;
+  background-color: #f8fafc;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -63,98 +199,24 @@ async function greet() {
   -webkit-text-size-adjust: 100%;
 }
 
-.container {
+body {
   margin: 0;
-  padding-top: 10vh;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
+#app {
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
+    color: #f8fafc;
+    background-color: #0f172a;
   }
 }
-
 </style>

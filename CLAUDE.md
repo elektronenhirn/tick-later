@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Tauri Development
 - `npm run tauri dev` - Start Tauri development mode (runs both frontend and backend)
-- `npm run tauri build` - Build production Tauri application for current platform
+- `npm run tauri build` - Build production Tauri application (creates .deb and .rpm packages)
 
 ### TypeScript
 - `vue-tsc --noEmit` - Type check TypeScript without emitting files (runs as part of build)
