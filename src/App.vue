@@ -88,7 +88,8 @@ onMounted(() => {
       <TodoList 
         :todos="todos" 
         @toggle-complete="handleToggleComplete"
-        @delete-todo="handleDeleteTodo" 
+        @delete-todo="handleDeleteTodo"
+        @add-todo="handleAddTodo"
       />
     </div>
 

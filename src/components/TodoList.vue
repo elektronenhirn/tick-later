@@ -10,6 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggleComplete: [todoId: string];
   deleteTodo: [todoId: string];
+  addTodo: [todoData: { title: string; description?: string; revisitAt: string }];
 }>();
 
 const sortedTodos = computed(() => {
@@ -66,6 +67,77 @@ function handleToggleComplete(todoId: string) {
 function handleDeleteTodo(todoId: string) {
   emit("deleteTodo", todoId);
 }
+
+function getTimestampForSection(section: string): string {
+  const now = new Date();
+  
+  switch (section) {
+    case 'next2Hours':
+      // In 1 hour
+      const in1Hour = new Date(now.getTime() + 1 * 60 * 60 * 1000);
+      return in1Hour.toISOString();
+    
+    case 'next2To4Hours':
+      // In 3 hours
+      const in3Hours = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      return in3Hours.toISOString();
+    
+    case 'tomorrow':
+      // Tomorrow at 7am
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(7, 0, 0, 0);
+      return tomorrow.toISOString();
+    
+    case 'nextWeek':
+      // Monday next week at 7am
+      const nextMonday = new Date(now);
+      const daysUntilMonday = (8 - nextMonday.getDay()) % 7;
+      if (daysUntilMonday === 0) {
+        // If today is Monday, next Monday is 7 days away
+        nextMonday.setDate(nextMonday.getDate() + 7);
+      } else {
+        nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+      }
+      nextMonday.setHours(7, 0, 0, 0);
+      return nextMonday.toISOString();
+    
+    default:
+      return now.toISOString();
+  }
+}
+
+function handleDrop(event: DragEvent, section: string) {
+  event.preventDefault();
+  
+  const text = event.dataTransfer?.getData("text/plain");
+  if (!text || !text.trim()) return;
+  
+  const revisitAt = getTimestampForSection(section);
+  
+  emit("addTodo", {
+    title: text.trim(),
+    revisitAt
+  });
+  
+  // Remove drag-over styling
+  const target = event.currentTarget as HTMLElement;
+  target.classList.remove('drag-over');
+}
+
+function handleDragOver(event: DragEvent) {
+  event.preventDefault();
+  
+  // Add visual feedback
+  const target = event.currentTarget as HTMLElement;
+  target.classList.add('drag-over');
+}
+
+function handleDragLeave(event: DragEvent) {
+  // Remove visual feedback when dragging leaves
+  const target = event.currentTarget as HTMLElement;
+  target.classList.remove('drag-over');
+}
 </script>
 
 <template>
@@ -82,7 +154,12 @@ function handleDeleteTodo(todoId: string) {
         
         <div class="time-grid">
           <!-- Upper Left: Next 2 Hours -->
-          <div class="time-quadrant">
+          <div 
+            class="time-quadrant drop-zone-quadrant"
+            @drop="handleDrop($event, 'next2Hours')"
+            @dragover="handleDragOver"
+            @dragleave="handleDragLeave"
+          >
             <h4 class="subsection-title urgent">⚡ Next 2 Hours ({{ categorizedPendingTodos.next2Hours.length }})</h4>
             <div v-if="categorizedPendingTodos.next2Hours.length > 0" class="quadrant-todos">
               <TodoItem
@@ -93,11 +170,19 @@ function handleDeleteTodo(todoId: string) {
                 @delete-todo="handleDeleteTodo"
               />
             </div>
-            <div v-else class="empty-quadrant">No urgent todos</div>
+            <div v-else class="empty-quadrant">
+              <span>No urgent todos</span>
+              <small class="drop-hint">Drop text here to create todo for 1 hour from now</small>
+            </div>
           </div>
           
           <!-- Upper Right: 2-4 Hours -->
-          <div class="time-quadrant">
+          <div 
+            class="time-quadrant drop-zone-quadrant"
+            @drop="handleDrop($event, 'next2To4Hours')"
+            @dragover="handleDragOver"
+            @dragleave="handleDragLeave"
+          >
             <h4 class="subsection-title soon">🕐 2-4 Hours ({{ categorizedPendingTodos.next2To4Hours.length }})</h4>
             <div v-if="categorizedPendingTodos.next2To4Hours.length > 0" class="quadrant-todos">
               <TodoItem
@@ -108,11 +193,19 @@ function handleDeleteTodo(todoId: string) {
                 @delete-todo="handleDeleteTodo"
               />
             </div>
-            <div v-else class="empty-quadrant">No todos in 2-4 hours</div>
+            <div v-else class="empty-quadrant">
+              <span>No todos in 2-4 hours</span>
+              <small class="drop-hint">Drop text here to create todo for 3 hours from now</small>
+            </div>
           </div>
           
           <!-- Lower Left: Tomorrow or Later -->
-          <div class="time-quadrant">
+          <div 
+            class="time-quadrant drop-zone-quadrant"
+            @drop="handleDrop($event, 'tomorrow')"
+            @dragover="handleDragOver"
+            @dragleave="handleDragLeave"
+          >
             <h4 class="subsection-title tomorrow">📅 Tomorrow or Later ({{ categorizedPendingTodos.tomorrow.length }})</h4>
             <div v-if="categorizedPendingTodos.tomorrow.length > 0" class="quadrant-todos">
               <TodoItem
@@ -123,11 +216,19 @@ function handleDeleteTodo(todoId: string) {
                 @delete-todo="handleDeleteTodo"
               />
             </div>
-            <div v-else class="empty-quadrant">No todos for tomorrow</div>
+            <div v-else class="empty-quadrant">
+              <span>No todos for tomorrow</span>
+              <small class="drop-hint">Drop text here to create todo for tomorrow 7AM</small>
+            </div>
           </div>
           
           <!-- Lower Right: Next Week or Later -->
-          <div class="time-quadrant">
+          <div 
+            class="time-quadrant drop-zone-quadrant"
+            @drop="handleDrop($event, 'nextWeek')"
+            @dragover="handleDragOver"
+            @dragleave="handleDragLeave"
+          >
             <h4 class="subsection-title future">📆 Next Week or Later ({{ categorizedPendingTodos.nextWeek.length }})</h4>
             <div v-if="categorizedPendingTodos.nextWeek.length > 0" class="quadrant-todos">
               <TodoItem
@@ -138,7 +239,10 @@ function handleDeleteTodo(todoId: string) {
                 @delete-todo="handleDeleteTodo"
               />
             </div>
-            <div v-else class="empty-quadrant">No future todos</div>
+            <div v-else class="empty-quadrant">
+              <span>No future todos</span>
+              <small class="drop-hint">Drop text here to create todo for Monday 7AM</small>
+            </div>
           </div>
         </div>
       </div>
@@ -250,6 +354,7 @@ function handleDeleteTodo(todoId: string) {
 
 .empty-quadrant {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   flex-grow: 1;
@@ -257,6 +362,35 @@ function handleDeleteTodo(todoId: string) {
   font-style: italic;
   text-align: center;
   padding: 20px;
+  gap: 8px;
+}
+
+.drop-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.drop-zone-quadrant {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.drop-zone-quadrant.drag-over {
+  background: #f3f4f6;
+  border-color: #4f46e5;
+  border-style: dashed;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+.drop-zone-quadrant.drag-over .empty-quadrant {
+  color: #4f46e5;
+}
+
+.drop-zone-quadrant.drag-over .drop-hint {
+  color: #4f46e5;
+  font-weight: 500;
 }
 
 .todos-grid {
@@ -325,6 +459,23 @@ function handleDeleteTodo(todoId: string) {
   
   .empty-quadrant {
     color: #6b7280;
+  }
+  
+  .drop-hint {
+    color: #9ca3af;
+  }
+  
+  .drop-zone-quadrant.drag-over {
+    background: #374151;
+    border-color: #6366f1;
+  }
+  
+  .drop-zone-quadrant.drag-over .empty-quadrant {
+    color: #6366f1;
+  }
+  
+  .drop-zone-quadrant.drag-over .drop-hint {
+    color: #6366f1;
   }
 }
 </style>
