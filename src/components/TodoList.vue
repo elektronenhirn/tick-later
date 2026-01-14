@@ -22,7 +22,13 @@ const sortedTodos = computed(() => {
   });
 });
 
-const pendingTodos = computed(() => sortedTodos.value.filter(t => !t.completed));
+const now = new Date();
+const overdueTodos = computed(() => 
+  sortedTodos.value.filter(t => !t.completed && new Date(t.revisit_at) < now)
+);
+const pendingTodos = computed(() => 
+  sortedTodos.value.filter(t => !t.completed && new Date(t.revisit_at) >= now)
+);
 const completedTodos = computed(() => sortedTodos.value.filter(t => t.completed));
 
 // Time-based categorization for pending todos
@@ -148,6 +154,20 @@ function handleDragLeave(event: DragEvent) {
     </div>
     
     <div v-else>
+      <!-- Overdue Todos -->
+      <div v-if="overdueTodos.length > 0" class="todo-section">
+        <h3 class="section-title overdue">⚠️ Overdue ({{ overdueTodos.length }})</h3>
+        <div class="overdue-todos">
+          <TodoItem
+            v-for="todo in overdueTodos"
+            :key="todo.id"
+            :todo="todo"
+            @toggle-complete="handleToggleComplete"
+            @delete-todo="handleDeleteTodo"
+          />
+        </div>
+      </div>
+      
       <!-- Pending Todos by Time Windows -->
       <div v-if="pendingTodos.length > 0" class="todo-section">
         <h3 class="section-title">Pending ({{ pendingTodos.length }})</h3>
@@ -298,6 +318,18 @@ function handleDragLeave(event: DragEvent) {
   padding-bottom: 8px;
 }
 
+.section-title.overdue {
+  color: #dc2626;
+  border-bottom-color: #dc2626;
+}
+
+.overdue-todos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
 .time-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -430,6 +462,11 @@ function handleDragLeave(event: DragEvent) {
   .section-title {
     color: #f3f4f6;
     border-bottom-color: #4b5563;
+  }
+  
+  .section-title.overdue {
+    color: #fca5a5;
+    border-bottom-color: #dc2626;
   }
   
   .time-quadrant {
