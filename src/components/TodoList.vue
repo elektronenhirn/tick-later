@@ -405,6 +405,11 @@ function handleDragLeave(event: DragEvent) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+}
+
+.items-list > * {
+  width: 100%;
 }
 
 .items-grid {
@@ -443,6 +448,7 @@ function handleDragLeave(event: DragEvent) {
   border: 2px solid var(--rule-line);
   padding: 20px;
   min-height: 280px;
+  min-width: 0; /* Prevents content from stretching the grid cell */
   display: flex;
   flex-direction: column;
   transition: all 0.2s ease;
@@ -527,6 +533,11 @@ function handleDragLeave(event: DragEvent) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
+}
+
+.items-column > * {
+  width: 100%;
 }
 
 .empty-cell {

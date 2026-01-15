@@ -129,6 +129,8 @@ function handleDragStart(event: DragEvent) {
 <style scoped>
 .todo-item {
   display: flex;
+  width: 100%;
+  box-sizing: border-box;
   background: var(--paper);
   border: 1px solid var(--rule-line);
   position: relative;
