@@ -203,38 +203,25 @@ onMounted(() => {
 .app {
   min-height: 100vh;
   padding: 0;
-  background: var(--paper);
+  background:
+    repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      color-mix(in srgb, var(--rule-line) 50%, transparent) 31px,
+      color-mix(in srgb, var(--rule-line) 50%, transparent) 32px
+    ),
+    var(--paper);
+  background-attachment: local; /* Scrolls with content - much smoother */
   position: relative;
   overflow-x: hidden;
 }
 
 .paper-texture {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  opacity: 0.03;
-  z-index: 0;
+  display: none;
 }
 
 .ruled-lines {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  background-image: repeating-linear-gradient(
-    transparent,
-    transparent 31px,
-    var(--rule-line) 31px,
-    var(--rule-line) 32px
-  );
-  opacity: 0.4;
-  z-index: 0;
+  display: none;
 }
 
 .app-header {
