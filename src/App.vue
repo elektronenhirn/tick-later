@@ -205,10 +205,18 @@ onMounted(() => {
   padding: 0;
   background:
     repeating-linear-gradient(
+      0deg,
       transparent,
       transparent 31px,
-      color-mix(in srgb, var(--rule-line) 50%, transparent) 31px,
-      color-mix(in srgb, var(--rule-line) 50%, transparent) 32px
+      color-mix(in srgb, var(--rule-line) 35%, transparent) 31px,
+      color-mix(in srgb, var(--rule-line) 35%, transparent) 32px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 31px,
+      color-mix(in srgb, var(--rule-line) 35%, transparent) 31px,
+      color-mix(in srgb, var(--rule-line) 35%, transparent) 32px
     ),
     var(--paper);
   background-attachment: local; /* Scrolls with content - much smoother */
