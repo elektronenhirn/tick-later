@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "tick-later",
+        "title": "Tick Later",
         "width": 800,
         "height": 600
       }
