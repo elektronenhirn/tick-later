@@ -11,13 +11,13 @@ const revisitAt = ref("");
 
 function addTodo() {
   if (!title.value.trim() || !revisitAt.value) return;
-  
+
   emit("addTodo", {
     title: title.value.trim(),
     description: description.value.trim() || undefined,
     revisitAt: revisitAt.value
   });
-  
+
   title.value = "";
   description.value = "";
   revisitAt.value = "";
@@ -34,160 +34,302 @@ function handleDrop(event: DragEvent) {
 function handleDragOver(event: DragEvent) {
   event.preventDefault();
 }
+
+// Quick schedule presets
+function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
+  const now = new Date();
+
+  switch (preset) {
+    case 'in1h':
+      now.setHours(now.getHours() + 1);
+      break;
+    case 'in3h':
+      now.setHours(now.getHours() + 3);
+      break;
+    case 'tomorrow':
+      now.setDate(now.getDate() + 1);
+      now.setHours(9, 0, 0, 0);
+      break;
+    case 'nextWeek':
+      const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+      now.setDate(now.getDate() + daysUntilMonday);
+      now.setHours(9, 0, 0, 0);
+      break;
+  }
+
+  // Format for datetime-local input
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+
+  revisitAt.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 </script>
 
 <template>
   <div class="todo-form">
     <form @submit.prevent="addTodo" class="form">
-      <div class="form-group">
-        <label for="title">Title *</label>
+      <div class="form-field">
+        <label for="title" class="field-label">
+          <span class="label-text">Title</span>
+          <span class="label-required">required</span>
+        </label>
         <input
           id="title"
           v-model="title"
           type="text"
-          placeholder="Enter todo title..."
+          placeholder="What needs to be done?"
           required
           @drop="handleDrop"
           @dragover="handleDragOver"
-          class="form-input"
+          class="field-input"
+          autocomplete="off"
         />
       </div>
-      
-      <div class="form-group">
-        <label for="description">Description</label>
+
+      <div class="form-field">
+        <label for="description" class="field-label">
+          <span class="label-text">Notes</span>
+          <span class="label-optional">optional</span>
+        </label>
         <textarea
           id="description"
           v-model="description"
-          placeholder="Optional description..."
+          placeholder="Additional context or details..."
           rows="3"
-          class="form-textarea"
+          class="field-textarea"
         ></textarea>
       </div>
-      
-      <div class="form-group">
-        <label for="revisit-at">Re-visit at *</label>
+
+      <div class="form-field">
+        <label for="revisit-at" class="field-label">
+          <span class="label-text">Schedule</span>
+          <span class="label-required">required</span>
+        </label>
+
+        <div class="quick-presets">
+          <button type="button" class="preset-btn" @click="setQuickSchedule('in1h')">
+            In 1 hour
+          </button>
+          <button type="button" class="preset-btn" @click="setQuickSchedule('in3h')">
+            In 3 hours
+          </button>
+          <button type="button" class="preset-btn" @click="setQuickSchedule('tomorrow')">
+            Tomorrow 9AM
+          </button>
+          <button type="button" class="preset-btn" @click="setQuickSchedule('nextWeek')">
+            Next Monday
+          </button>
+        </div>
+
         <input
           id="revisit-at"
           v-model="revisitAt"
           type="datetime-local"
           required
-          class="form-input"
+          class="field-input field-input--datetime"
         />
       </div>
-      
-      <button type="submit" :disabled="!title.trim() || !revisitAt" class="submit-btn">
-        Add Todo
-      </button>
+
+      <div class="form-actions">
+        <button
+          type="submit"
+          :disabled="!title.trim() || !revisitAt"
+          class="submit-btn"
+        >
+          <span class="btn-text">Add Entry</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
     </form>
-    
-    <div class="drop-zone">
-      <p>💡 Drag text here to create a todo</p>
+
+    <div class="drop-zone-hint">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      <span>Drop text onto title field to import</span>
     </div>
   </div>
 </template>
 
 <style scoped>
 .todo-form {
-  background: transparent;
-  border-radius: 0;
-  padding: 24px;
-  box-shadow: none;
-  margin-bottom: 0;
+  padding: 24px 28px 28px;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 
-.form-group {
+.form-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.form-group label {
-  font-weight: 500;
-  color: #555;
-  font-size: 0.9rem;
+.field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.form-input,
-.form-textarea {
-  padding: 12px;
-  border: 2px solid #e1e5e9;
-  border-radius: 8px;
+.label-text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.label-required,
+.label-optional {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.label-required {
+  color: var(--urgent);
+}
+
+.label-optional {
+  color: var(--ink-light);
+}
+
+.field-input,
+.field-textarea {
+  font-family: var(--font-body);
   font-size: 1rem;
-  transition: border-color 0.2s;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--rule-line);
+  padding: 14px 16px;
+  transition: all 0.15s ease;
+  width: 100%;
 }
 
-.form-input:focus,
-.form-textarea:focus {
+.field-input::placeholder,
+.field-textarea::placeholder {
+  color: var(--ink-light);
+  opacity: 0.7;
+}
+
+.field-input:focus,
+.field-textarea:focus {
   outline: none;
-  border-color: #4f46e5;
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink-shadow);
 }
 
-.form-textarea {
+.field-textarea {
   resize: vertical;
   min-height: 80px;
+  line-height: 1.6;
+}
+
+.field-input--datetime {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+}
+
+.quick-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.preset-btn {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  background: transparent;
+  border: 1px solid var(--rule-line);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.preset-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--paper-alt);
+}
+
+.form-actions {
+  padding-top: 8px;
 }
 
 .submit-btn {
-  padding: 12px 24px;
-  background: #4f46e5;
-  color: white;
-  border: none;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 24px;
+  font-family: var(--font-body);
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--paper);
+  background: var(--ink);
+  border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 3px 3px 0 var(--ink-shadow);
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #3b82f6;
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--ink-shadow);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink-shadow);
 }
 
 .submit-btn:disabled {
-  background: #9ca3af;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
-.drop-zone {
-  margin-top: 16px;
+.drop-zone-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
   padding: 12px;
-  border: 2px dashed #d1d5db;
-  border-radius: 8px;
-  text-align: center;
-  color: #6b7280;
-  font-size: 0.9rem;
+  border: 1px dashed var(--rule-line);
+  color: var(--ink-light);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (max-width: 768px) {
   .todo-form {
-    background: transparent;
+    padding: 20px 24px 24px;
   }
-  
-  .form-group label {
-    color: #d1d5db;
+
+  .quick-presets {
+    gap: 6px;
   }
-  
-  .form-input,
-  .form-textarea {
-    background: #374151;
-    border-color: #4b5563;
-    color: #f9fafb;
-  }
-  
-  .form-input:focus,
-  .form-textarea:focus {
-    border-color: #6366f1;
-  }
-  
-  .drop-zone {
-    border-color: #4b5563;
-    color: #9ca3af;
+
+  .preset-btn {
+    font-size: 0.7rem;
+    padding: 5px 10px;
   }
 }
 </style>

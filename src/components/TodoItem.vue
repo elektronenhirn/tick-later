@@ -12,7 +12,12 @@ const emit = defineEmits<{
 }>();
 
 const revisitDate = computed(() => {
-  return new Date(props.todo.revisit_at).toLocaleString();
+  const date = new Date(props.todo.revisit_at);
+  return {
+    time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    full: date.toLocaleString()
+  };
 });
 
 const isOverdue = computed(() => {
@@ -20,7 +25,11 @@ const isOverdue = computed(() => {
 });
 
 const createdDate = computed(() => {
-  return new Date(props.todo.created_at).toLocaleDateString();
+  return new Date(props.todo.created_at).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 });
 
 function handleToggleComplete() {
@@ -28,7 +37,7 @@ function handleToggleComplete() {
 }
 
 function handleDelete() {
-  if (confirm("Are you sure you want to delete this todo?")) {
+  if (confirm("Are you sure you want to delete this entry?")) {
     emit("deleteTodo", props.todo.id);
   }
 }
@@ -37,281 +46,298 @@ function handleDragStart(event: DragEvent) {
   if (event.dataTransfer) {
     event.dataTransfer.setData("text/plain", props.todo.title);
     event.dataTransfer.setData("application/json", JSON.stringify(props.todo));
+    event.dataTransfer.effectAllowed = "move";
   }
 }
 </script>
 
 <template>
-  <div 
+  <article
     class="todo-item"
     :class="{
-      'completed': todo.completed,
-      'overdue': isOverdue
+      'todo-item--completed': todo.completed,
+      'todo-item--overdue': isOverdue
     }"
     draggable="true"
     @dragstart="handleDragStart"
   >
-    <div class="todo-header">
-      <div class="todo-checkbox">
-        <input
-          type="checkbox"
-          :checked="todo.completed"
-          @change="handleToggleComplete"
-          :id="`todo-${todo.id}`"
-        />
-        <label :for="`todo-${todo.id}`" class="checkbox-label"></label>
-      </div>
-      <button @click="handleDelete" class="delete-btn" title="Delete todo">
-        ✕
-      </button>
-    </div>
-    
-    <div class="todo-content">
-      <h4 class="todo-title">{{ todo.title }}</h4>
-      
-      <p v-if="todo.description" class="todo-description">
-        {{ todo.description }}
-      </p>
-      
-      <div class="todo-meta">
-        <div class="revisit-info">
-          <span class="label">Re-visit:</span>
-          <span class="date" :class="{ 'overdue': isOverdue }">
-            {{ revisitDate }}
-          </span>
+    <div class="item-edge"></div>
+
+    <div class="item-body">
+      <header class="item-header">
+        <button
+          class="checkbox"
+          :class="{ 'checkbox--checked': todo.completed }"
+          @click="handleToggleComplete"
+          :title="todo.completed ? 'Mark as pending' : 'Mark as complete'"
+        >
+          <svg v-if="todo.completed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </button>
+
+        <div class="item-actions">
+          <button class="action-btn action-btn--delete" @click="handleDelete" title="Delete entry">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+          <div class="drag-grip" title="Drag to reschedule">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
         </div>
-        
-        <div class="created-info">
-          <span class="label">Created:</span>
-          <span class="date">{{ createdDate }}</span>
-        </div>
+      </header>
+
+      <div class="item-content">
+        <h3 class="item-title">{{ todo.title }}</h3>
+
+        <p v-if="todo.description" class="item-description">
+          {{ todo.description }}
+        </p>
       </div>
+
+      <footer class="item-footer">
+        <div class="schedule" :class="{ 'schedule--overdue': isOverdue }">
+          <span class="schedule-label">Due</span>
+          <time class="schedule-time" :datetime="todo.revisit_at" :title="revisitDate.full">
+            {{ revisitDate.date }} at {{ revisitDate.time }}
+          </time>
+        </div>
+
+        <div class="created">
+          <span class="created-label">Added</span>
+          <time class="created-date">{{ createdDate }}</time>
+        </div>
+      </footer>
     </div>
-    
-    <div class="drag-handle" title="Drag to reorder or export">
-      ⋮⋮
-    </div>
-  </div>
+  </article>
 </template>
 
 <style scoped>
 .todo-item {
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.2s ease;
-  cursor: grab;
+  display: flex;
+  background: var(--paper);
+  border: 1px solid var(--rule-line);
   position: relative;
+  cursor: grab;
+  transition: all 0.2s ease;
 }
 
 .todo-item:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  border-color: var(--ink-light);
+  box-shadow: 2px 2px 0 var(--ink-shadow);
+  transform: translate(-1px, -1px);
 }
 
 .todo-item:active {
   cursor: grabbing;
+  transform: translate(0, 0);
+  box-shadow: 1px 1px 0 var(--ink-shadow);
 }
 
-.todo-item.completed {
-  opacity: 0.7;
-  border-color: #10b981;
-  background: #f0fdf4;
+.item-edge {
+  width: 6px;
+  background: var(--ink);
+  flex-shrink: 0;
 }
 
-.todo-item.overdue {
-  border-color: #ef4444;
-  border-left-width: 6px;
+.todo-item--overdue .item-edge {
+  background: var(--urgent);
 }
 
-.todo-header {
+.todo-item--completed .item-edge {
+  background: var(--success);
+}
+
+.item-body {
+  flex: 1;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
 }
 
-.todo-checkbox {
-  position: relative;
-}
-
-.todo-checkbox input[type="checkbox"] {
-  opacity: 0;
-  position: absolute;
-}
-
-.checkbox-label {
-  display: block;
-  width: 24px;
-  height: 24px;
-  border: 2px solid #d1d5db;
-  border-radius: 6px;
+.checkbox {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--ink-light);
+  background: transparent;
   cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.checkbox-label::after {
-  content: "✓";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-weight: bold;
-  font-size: 14px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.todo-checkbox input:checked + .checkbox-label {
-  background: #10b981;
-  border-color: #10b981;
-}
-
-.todo-checkbox input:checked + .checkbox-label::after {
-  opacity: 1;
-}
-
-.delete-btn {
-  background: none;
-  border: none;
-  color: #ef4444;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.delete-btn:hover {
-  background: #fee2e2;
-}
-
-.todo-content {
-  margin-bottom: 12px;
-}
-
-.todo-title {
-  margin: 0 0 8px 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1f2937;
-  line-height: 1.4;
-}
-
-.completed .todo-title {
-  text-decoration: line-through;
-  color: #6b7280;
-}
-
-.todo-description {
-  margin: 0 0 12px 0;
-  color: #6b7280;
-  line-height: 1.5;
-  font-size: 0.95rem;
-}
-
-.todo-meta {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.875rem;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  color: var(--paper);
+  padding: 0;
 }
 
-.revisit-info,
-.created-info {
+.checkbox:hover {
+  border-color: var(--ink);
+}
+
+.checkbox--checked {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.item-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.label {
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-light);
+  padding: 0;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+.todo-item:hover .action-btn {
+  opacity: 1;
+}
+
+.action-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.action-btn--delete:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.drag-grip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 4px;
+  cursor: grab;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.todo-item:hover .drag-grip {
+  opacity: 0.8;
+}
+
+.drag-grip span {
+  width: 12px;
+  height: 2px;
+  background: var(--ink-light);
+  border-radius: 1px;
+}
+
+.item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 6px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.todo-item--completed .item-title {
+  text-decoration: line-through;
+  color: var(--ink-light);
+}
+
+.item-description {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--ink-light);
+  margin: 0;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.todo-item--completed .item-description {
+  opacity: 0.6;
+}
+
+.item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--rule-line);
+}
+
+.schedule,
+.created {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.schedule-label,
+.created-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-light);
+}
+
+.schedule-time {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
   font-weight: 500;
-  color: #6b7280;
-  min-width: 60px;
+  color: var(--ink);
 }
 
-.date {
-  color: #374151;
-}
-
-.date.overdue {
-  color: #ef4444;
+.schedule--overdue .schedule-time {
+  color: var(--urgent);
   font-weight: 600;
 }
 
-.drag-handle {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  color: #9ca3af;
-  font-size: 1.2rem;
-  cursor: grab;
-  padding: 4px;
-  border-radius: 4px;
-  transition: color 0.2s;
+.created-date {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--ink-light);
 }
 
-.drag-handle:hover {
-  color: #6b7280;
+/* Completed state */
+.todo-item--completed {
+  opacity: 0.7;
 }
 
-.todo-item:active .drag-handle {
-  cursor: grabbing;
+.todo-item--completed .item-footer {
+  border-top-color: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  .todo-item {
-    background: #1f2937;
-    border-color: #4b5563;
-  }
-  
-  .todo-item:hover {
-    border-color: #6b7280;
-  }
-  
-  .todo-item.completed {
-    background: #064e3b;
-    border-color: #10b981;
-  }
-  
-  .checkbox-label {
-    border-color: #6b7280;
-  }
-  
-  .delete-btn:hover {
-    background: #7f1d1d;
-  }
-  
-  .todo-title {
-    color: #f9fafb;
-  }
-  
-  .completed .todo-title {
-    color: #9ca3af;
-  }
-  
-  .todo-description {
-    color: #d1d5db;
-  }
-  
-  .label {
-    color: #9ca3af;
-  }
-  
-  .date {
-    color: #e5e7eb;
-  }
-  
-  .drag-handle {
-    color: #6b7280;
-  }
-  
-  .drag-handle:hover {
-    color: #9ca3af;
-  }
+/* Overdue state */
+.todo-item--overdue {
+  background: var(--urgent-bg);
 }
+
+.todo-item--overdue .checkbox {
+  border-color: var(--urgent);
+}
+
+/* Dark mode adjustments are handled by CSS variables in App.vue */
 </style>

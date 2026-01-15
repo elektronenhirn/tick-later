@@ -30,7 +30,7 @@ async function handleAddTodo(todoData: { title: string; description?: string; re
       revisitAt: new Date(todoData.revisitAt).toISOString()
     });
     todos.value.push(newTodo);
-    showTodoForm.value = false; // Close modal after adding todo
+    showTodoForm.value = false;
   } catch (e) {
     error.value = `Failed to add todo: ${e}`;
   }
@@ -50,9 +50,9 @@ async function handleToggleComplete(todoId: string) {
 
 async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
   try {
-    await invoke("update_todo", { 
-      id: todoData.id, 
-      revisitAt: new Date(todoData.revisitAt).toISOString() 
+    await invoke("update_todo", {
+      id: todoData.id,
+      revisitAt: new Date(todoData.revisitAt).toISOString()
     });
     const todo = todos.value.find(t => t.id === todoData.id);
     if (todo) {
@@ -87,21 +87,39 @@ onMounted(() => {
 
 <template>
   <main class="app">
+    <div class="paper-texture"></div>
+    <div class="ruled-lines"></div>
+
     <header class="app-header">
-      <h1>Tick Later</h1>
-      <p>Personal Todo Organizer</p>
+      <div class="header-content">
+        <div class="brand">
+          <div class="logo-mark">TL</div>
+          <div class="brand-text">
+            <h1>Tick Later</h1>
+            <p class="tagline">a personal journal for tasks</p>
+          </div>
+        </div>
+        <div class="header-date">
+          {{ new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+        </div>
+      </div>
+      <div class="header-rule"></div>
     </header>
 
-    <div v-if="error" class="error">
-      {{ error }}
-      <button @click="loadTodos" class="retry-btn">Retry</button>
+    <div v-if="error" class="error-notice">
+      <span class="error-stamp">ERROR</span>
+      <span class="error-text">{{ error }}</span>
+      <button @click="loadTodos" class="retry-link">Try again</button>
     </div>
 
-    <div v-if="loading" class="loading">Loading todos...</div>
+    <div v-if="loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <span>Opening journal...</span>
+    </div>
 
     <div v-else class="app-content">
-      <TodoList 
-        :todos="todos" 
+      <TodoList
+        :todos="todos"
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"
@@ -109,122 +127,266 @@ onMounted(() => {
       />
     </div>
 
-    <!-- Floating Add Button -->
-    <button @click="openTodoForm" class="floating-add-btn" title="Add new todo">
-      <span class="plus-icon">+</span>
+    <!-- Floating Compose Button -->
+    <button @click="openTodoForm" class="compose-btn" title="New entry">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
     </button>
 
-    <!-- Modal Dialog for Todo Form -->
-    <div v-if="showTodoForm" class="modal-overlay" @click="closeTodoForm">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Add New Todo</h2>
-          <button @click="closeTodoForm" class="close-btn" title="Close">×</button>
+    <!-- Modal Dialog -->
+    <Transition name="modal">
+      <div v-if="showTodoForm" class="modal-overlay" @click="closeTodoForm">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h2>New Entry</h2>
+            <button @click="closeTodoForm" class="close-btn" title="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <TodoForm @add-todo="handleAddTodo" />
         </div>
-        <TodoForm @add-todo="handleAddTodo" />
       </div>
-    </div>
+    </Transition>
   </main>
 </template>
 
 <style scoped>
 .app {
   min-height: 100vh;
-  padding: 20px;
-  background: #f8fafc;
+  padding: 0;
+  background: var(--paper);
+  position: relative;
+  overflow-x: hidden;
+}
+
+.paper-texture {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  z-index: 0;
+}
+
+.ruled-lines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    var(--rule-line) 31px,
+    var(--rule-line) 32px
+  );
+  opacity: 0.4;
+  z-index: 0;
 }
 
 .app-header {
-  text-align: center;
+  position: relative;
+  z-index: 1;
+  padding: 40px 48px 24px;
   margin-bottom: 32px;
-  padding: 20px 0;
 }
 
-.app-header h1 {
-  margin: 0 0 8px 0;
-  font-size: 2.5rem;
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo-mark {
+  width: 56px;
+  height: 56px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  letter-spacing: -0.02em;
+  box-shadow:
+    2px 2px 0 var(--ink-shadow),
+    inset 0 0 0 1px rgba(255,255,255,0.1);
 }
 
-.app-header p {
+.brand-text h1 {
   margin: 0;
-  color: #6b7280;
-  font-size: 1.125rem;
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.tagline {
+  margin: 4px 0 0;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--ink-light);
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+.header-date {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-top: 8px;
+}
+
+.header-rule {
+  height: 3px;
+  background: var(--ink);
+  position: relative;
+}
+
+.header-rule::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--ink);
+  opacity: 0.3;
 }
 
 .app-content {
-  max-width: 1200px;
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: 0 48px 120px;
 }
 
-.error {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 24px;
+.error-notice {
+  position: relative;
+  z-index: 1;
+  margin: 0 48px 24px;
+  padding: 16px 20px;
+  background: var(--error-bg);
+  border: 2px solid var(--error);
+  border-left-width: 6px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.retry-btn {
-  background: #dc2626;
-  color: white;
+.error-stamp {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--error);
+  letter-spacing: 0.15em;
+  padding: 4px 8px;
+  border: 2px solid var(--error);
+  transform: rotate(-2deg);
+}
+
+.error-text {
+  flex: 1;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.retry-link {
+  background: none;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
+  padding: 0;
 }
 
-.retry-btn:hover {
-  background: #b91c1c;
+.retry-link:hover {
+  color: var(--accent);
 }
 
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-  color: #6b7280;
-  font-size: 1.125rem;
+.loading-state {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px;
+  gap: 20px;
+  color: var(--ink-light);
+  font-family: var(--font-body);
+  font-style: italic;
 }
 
-.floating-add-btn {
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--rule-line);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.compose-btn {
   position: fixed;
   bottom: 32px;
   right: 32px;
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  width: 60px;
+  height: 60px;
+  background: var(--ink);
   border: none;
-  border-radius: 50%;
-  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
+  color: var(--paper);
   cursor: pointer;
-  transition: all 0.3s ease;
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    3px 3px 0 var(--ink-shadow),
+    0 8px 24px rgba(0,0,0,0.15);
 }
 
-.floating-add-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 12px 32px rgba(79, 70, 229, 0.4);
+.compose-btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    5px 5px 0 var(--ink-shadow),
+    0 12px 32px rgba(0,0,0,0.2);
 }
 
-.floating-add-btn:active {
-  transform: scale(0.95);
-}
-
-.plus-icon {
-  color: white;
-  font-size: 2rem;
-  font-weight: 300;
-  line-height: 1;
+.compose-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow:
+    1px 1px 0 var(--ink-shadow),
+    0 4px 12px rgba(0,0,0,0.15);
 }
 
 .modal-overlay {
@@ -233,7 +395,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -243,130 +405,131 @@ onMounted(() => {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 600px;
+  background: var(--paper);
+  box-shadow:
+    8px 8px 0 var(--ink-shadow),
+    0 24px 80px rgba(0,0,0,0.3);
+  max-width: 520px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  animation: modalFadeIn 0.2s ease-out;
+  position: relative;
+}
+
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--ink);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 24px 0 24px;
-  margin-bottom: 16px;
+  padding: 28px 28px 0;
+  margin-bottom: 8px;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #1f2937;
+  font-family: var(--font-display);
   font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
 }
 
 .close-btn {
   background: none;
-  border: none;
-  font-size: 2rem;
-  color: #6b7280;
+  border: 2px solid transparent;
+  color: var(--ink-light);
   cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .close-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+/* Modal Transitions */
+.modal-enter-active {
+  transition: opacity 0.2s ease;
+}
+.modal-enter-active .modal-content {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+.modal-leave-active {
+  transition: opacity 0.15s ease;
+}
+.modal-leave-active .modal-content {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-from .modal-content {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.98);
+}
+.modal-leave-to .modal-content {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
 }
 
 @media (max-width: 768px) {
-  .floating-add-btn {
-    bottom: 24px;
-    right: 24px;
-    width: 56px;
-    height: 56px;
+  .app-header {
+    padding: 24px 24px 16px;
   }
-  
-  .plus-icon {
+
+  .header-content {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .logo-mark {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+
+  .brand-text h1 {
     font-size: 1.75rem;
   }
-  
+
+  .app-content {
+    padding: 0 24px 100px;
+  }
+
+  .compose-btn {
+    bottom: 24px;
+    right: 24px;
+    width: 52px;
+    height: 52px;
+  }
+
   .modal-overlay {
     padding: 16px;
   }
-  
-  .modal-header {
-    padding: 20px 20px 0 20px;
-  }
-}
 
-@media (prefers-color-scheme: dark) {
-  .app {
-    background: #0f172a;
-  }
-  
-  .app-header h1 {
-    background: linear-gradient(135deg, #6366f1, #a855f7);
-    background-clip: text;
-    -webkit-background-clip: text;
-  }
-  
-  .app-header p {
-    color: #94a3b8;
-  }
-  
-  .error {
-    background: #7f1d1d;
-    color: #fca5a5;
-  }
-  
-  .loading {
-    color: #94a3b8;
-  }
-  
-  .modal-overlay {
-    background: rgba(0, 0, 0, 0.7);
-  }
-  
-  .modal-content {
-    background: #1f2937;
-  }
-  
-  .modal-header h2 {
-    color: #f9fafb;
-  }
-  
-  .close-btn {
-    color: #9ca3af;
-  }
-  
-  .close-btn:hover {
-    background: #374151;
-    color: #d1d5db;
+  .modal-header {
+    padding: 24px 24px 0;
   }
 }
 </style>
+
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -374,25 +537,51 @@ onMounted(() => {
 }
 
 :root {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
-  font-weight: 400;
+  /* Typography */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 
-  color: #1f2937;
-  background-color: #f8fafc;
+  /* Colors - Light (Warm Cream Paper) */
+  --paper: #faf8f3;
+  --paper-alt: #f5f2ea;
+  --ink: #1a1614;
+  --ink-light: #6b6560;
+  --ink-shadow: rgba(26, 22, 20, 0.25);
+  --rule-line: #d4cfc5;
+
+  --accent: #8b4513;
+  --accent-light: #a0522d;
+
+  --urgent: #b91c1c;
+  --urgent-bg: #fef2f2;
+  --soon: #c2410c;
+  --soon-bg: #fff7ed;
+  --tomorrow: #1d4ed8;
+  --tomorrow-bg: #eff6ff;
+  --future: #047857;
+  --future-bg: #ecfdf5;
+
+  --success: #15803d;
+  --success-bg: #f0fdf4;
+  --error: #b91c1c;
+  --error-bg: #fef2f2;
+
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 400;
+  color: var(--ink);
+  background-color: var(--paper);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -403,10 +592,65 @@ body {
   padding: 0;
 }
 
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper-alt);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rule-line);
+  border: 2px solid var(--paper-alt);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-light);
+}
+
+/* Selection */
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
-    color: #f8fafc;
-    background-color: #0f172a;
+    --paper: #1c1917;
+    --paper-alt: #292524;
+    --ink: #fafaf9;
+    --ink-light: #a8a29e;
+    --ink-shadow: rgba(0, 0, 0, 0.5);
+    --rule-line: #44403c;
+
+    --accent: #d97706;
+    --accent-light: #f59e0b;
+
+    --urgent: #ef4444;
+    --urgent-bg: #2c1810;
+    --soon: #f97316;
+    --soon-bg: #2c1d10;
+    --tomorrow: #3b82f6;
+    --tomorrow-bg: #172032;
+    --future: #10b981;
+    --future-bg: #0f2520;
+
+    --success: #22c55e;
+    --success-bg: #14261a;
+    --error: #ef4444;
+    --error-bg: #2c1810;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--paper);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--rule-line);
+    border-color: var(--paper);
   }
 }
 </style>
