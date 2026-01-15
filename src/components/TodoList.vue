@@ -11,6 +11,7 @@ const emit = defineEmits<{
   toggleComplete: [todoId: string];
   deleteTodo: [todoId: string];
   addTodo: [todoData: { title: string; description?: string; revisitAt: string }];
+  updateTodo: [todoData: { id: string; revisitAt: string }];
 }>();
 
 const sortedTodos = computed(() => {
@@ -39,8 +40,17 @@ const categorizedPendingTodos = computed(() => {
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
+  
+  // Calculate next Monday at 7am (same logic as getTimestampForSection)
   const nextWeek = new Date(now);
-  nextWeek.setDate(nextWeek.getDate() + 7);
+  const daysUntilMonday = (8 - nextWeek.getDay()) % 7;
+  if (daysUntilMonday === 0) {
+    // If today is Monday, next Monday is 7 days away
+    nextWeek.setDate(nextWeek.getDate() + 7);
+  } else {
+    nextWeek.setDate(nextWeek.getDate() + daysUntilMonday);
+  }
+  nextWeek.setHours(7, 0, 0, 0);
 
   const categories = {
     next2Hours: [] as Todo[],
@@ -78,6 +88,11 @@ function getTimestampForSection(section: string): string {
   const now = new Date();
   
   switch (section) {
+    case 'overdue':
+      // 1 hour ago to make it overdue
+      const oneHourAgo = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+      return oneHourAgo.toISOString();
+    
     case 'next2Hours':
       // In 1 hour
       const in1Hour = new Date(now.getTime() + 1 * 60 * 60 * 1000);
@@ -116,15 +131,29 @@ function getTimestampForSection(section: string): string {
 function handleDrop(event: DragEvent, section: string) {
   event.preventDefault();
   
+  const todoJson = event.dataTransfer?.getData("application/json");
   const text = event.dataTransfer?.getData("text/plain");
-  if (!text || !text.trim()) return;
   
-  const revisitAt = getTimestampForSection(section);
-  
-  emit("addTodo", {
-    title: text.trim(),
-    revisitAt
-  });
+  if (todoJson) {
+    // This is an existing todo being moved
+    try {
+      const todo = JSON.parse(todoJson);
+      const newRevisitAt = getTimestampForSection(section);
+      emit("updateTodo", {
+        id: todo.id,
+        revisitAt: newRevisitAt
+      });
+    } catch (e) {
+      console.error("Failed to parse todo JSON:", e);
+    }
+  } else if (text && text.trim()) {
+    // This is external text being dropped to create a new todo
+    const revisitAt = getTimestampForSection(section);
+    emit("addTodo", {
+      title: text.trim(),
+      revisitAt
+    });
+  }
   
   // Remove drag-over styling
   const target = event.currentTarget as HTMLElement;
@@ -152,7 +181,13 @@ function handleDragLeave(event: DragEvent) {
       <!-- Overdue Todos -->
       <div class="todo-section">
         <h3 class="section-title overdue">⚠️ Overdue ({{ overdueTodos.length }})</h3>
-        <div v-if="overdueTodos.length > 0" class="overdue-todos">
+        <div 
+          v-if="overdueTodos.length > 0" 
+          class="overdue-todos drop-zone"
+          @drop="handleDrop($event, 'overdue')"
+          @dragover="handleDragOver"
+          @dragleave="handleDragLeave"
+        >
           <TodoItem
             v-for="todo in overdueTodos"
             :key="todo.id"
@@ -161,8 +196,15 @@ function handleDragLeave(event: DragEvent) {
             @delete-todo="handleDeleteTodo"
           />
         </div>
-        <div v-else class="empty-section">
+        <div 
+          v-else 
+          class="empty-section drop-zone"
+          @drop="handleDrop($event, 'overdue')"
+          @dragover="handleDragOver"
+          @dragleave="handleDragLeave"
+        >
           <span>No overdue todos</span>
+          <small class="drop-hint">Drop text here to create overdue todo or drag existing todo here</small>
         </div>
       </div>
       
@@ -179,7 +221,13 @@ function handleDragLeave(event: DragEvent) {
             @dragleave="handleDragLeave"
           >
             <h4 class="subsection-title urgent">⚡ Next 2 Hours ({{ categorizedPendingTodos.next2Hours.length }})</h4>
-            <div v-if="categorizedPendingTodos.next2Hours.length > 0" class="quadrant-todos">
+            <div 
+              v-if="categorizedPendingTodos.next2Hours.length > 0" 
+              class="quadrant-todos"
+              @drop="handleDrop($event, 'next2Hours')"
+              @dragover="handleDragOver"
+              @dragleave="handleDragLeave"
+            >
               <TodoItem
                 v-for="todo in categorizedPendingTodos.next2Hours"
                 :key="todo.id"
@@ -202,7 +250,13 @@ function handleDragLeave(event: DragEvent) {
             @dragleave="handleDragLeave"
           >
             <h4 class="subsection-title soon">🕐 2-4 Hours ({{ categorizedPendingTodos.next2To4Hours.length }})</h4>
-            <div v-if="categorizedPendingTodos.next2To4Hours.length > 0" class="quadrant-todos">
+            <div 
+              v-if="categorizedPendingTodos.next2To4Hours.length > 0" 
+              class="quadrant-todos"
+              @drop="handleDrop($event, 'next2To4Hours')"
+              @dragover="handleDragOver"
+              @dragleave="handleDragLeave"
+            >
               <TodoItem
                 v-for="todo in categorizedPendingTodos.next2To4Hours"
                 :key="todo.id"
@@ -225,7 +279,13 @@ function handleDragLeave(event: DragEvent) {
             @dragleave="handleDragLeave"
           >
             <h4 class="subsection-title tomorrow">📅 Tomorrow or Later ({{ categorizedPendingTodos.tomorrow.length }})</h4>
-            <div v-if="categorizedPendingTodos.tomorrow.length > 0" class="quadrant-todos">
+            <div 
+              v-if="categorizedPendingTodos.tomorrow.length > 0" 
+              class="quadrant-todos"
+              @drop="handleDrop($event, 'tomorrow')"
+              @dragover="handleDragOver"
+              @dragleave="handleDragLeave"
+            >
               <TodoItem
                 v-for="todo in categorizedPendingTodos.tomorrow"
                 :key="todo.id"
@@ -248,7 +308,13 @@ function handleDragLeave(event: DragEvent) {
             @dragleave="handleDragLeave"
           >
             <h4 class="subsection-title future">📆 Next Week or Later ({{ categorizedPendingTodos.nextWeek.length }})</h4>
-            <div v-if="categorizedPendingTodos.nextWeek.length > 0" class="quadrant-todos">
+            <div 
+              v-if="categorizedPendingTodos.nextWeek.length > 0" 
+              class="quadrant-todos"
+              @drop="handleDrop($event, 'nextWeek')"
+              @dragover="handleDragOver"
+              @dragleave="handleDragLeave"
+            >
               <TodoItem
                 v-for="todo in categorizedPendingTodos.nextWeek"
                 :key="todo.id"
@@ -390,6 +456,15 @@ function handleDragLeave(event: DragEvent) {
   flex-direction: column;
   gap: 12px;
   flex-grow: 1;
+  min-height: 60px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.quadrant-todos.drag-over {
+  background: #f3f4f6;
+  border: 2px dashed #4f46e5;
 }
 
 .empty-quadrant {
@@ -411,11 +486,13 @@ function handleDragLeave(event: DragEvent) {
   margin-top: 4px;
 }
 
+.drop-zone,
 .drop-zone-quadrant {
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
+.drop-zone.drag-over,
 .drop-zone-quadrant.drag-over {
   background: #f3f4f6;
   border-color: #4f46e5;
@@ -424,10 +501,12 @@ function handleDragLeave(event: DragEvent) {
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
 }
 
+.drop-zone.drag-over .empty-section,
 .drop-zone-quadrant.drag-over .empty-quadrant {
   color: #4f46e5;
 }
 
+.drop-zone.drag-over .drop-hint,
 .drop-zone-quadrant.drag-over .drop-hint {
   color: #4f46e5;
   font-weight: 500;
@@ -516,17 +595,25 @@ function handleDragLeave(event: DragEvent) {
     color: #9ca3af;
   }
   
+  .drop-zone.drag-over,
   .drop-zone-quadrant.drag-over {
     background: #374151;
     border-color: #6366f1;
   }
   
+  .drop-zone.drag-over .empty-section,
   .drop-zone-quadrant.drag-over .empty-quadrant {
     color: #6366f1;
   }
   
+  .drop-zone.drag-over .drop-hint,
   .drop-zone-quadrant.drag-over .drop-hint {
     color: #6366f1;
+  }
+  
+  .quadrant-todos.drag-over {
+    background: #374151;
+    border-color: #6366f1;
   }
 }
 </style>

@@ -48,6 +48,21 @@ async function handleToggleComplete(todoId: string) {
   }
 }
 
+async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
+  try {
+    await invoke("update_todo", { 
+      id: todoData.id, 
+      revisitAt: new Date(todoData.revisitAt).toISOString() 
+    });
+    const todo = todos.value.find(t => t.id === todoData.id);
+    if (todo) {
+      todo.revisit_at = todoData.revisitAt;
+    }
+  } catch (e) {
+    error.value = `Failed to update todo: ${e}`;
+  }
+}
+
 async function handleDeleteTodo(todoId: string) {
   try {
     await invoke("delete_todo", { id: todoId });
@@ -90,6 +105,7 @@ onMounted(() => {
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"
+        @update-todo="handleUpdateTodo"
       />
     </div>
 
