@@ -148,16 +148,11 @@ function handleDragLeave(event: DragEvent) {
 
 <template>
   <div class="todo-list">
-    <div v-if="todos.length === 0" class="empty-state">
-      <h3>No todos yet</h3>
-      <p>Add your first todo above to get started!</p>
-    </div>
-    
-    <div v-else>
+    <div>
       <!-- Overdue Todos -->
-      <div v-if="overdueTodos.length > 0" class="todo-section">
+      <div class="todo-section">
         <h3 class="section-title overdue">⚠️ Overdue ({{ overdueTodos.length }})</h3>
-        <div class="overdue-todos">
+        <div v-if="overdueTodos.length > 0" class="overdue-todos">
           <TodoItem
             v-for="todo in overdueTodos"
             :key="todo.id"
@@ -166,10 +161,13 @@ function handleDragLeave(event: DragEvent) {
             @delete-todo="handleDeleteTodo"
           />
         </div>
+        <div v-else class="empty-section">
+          <span>No overdue todos</span>
+        </div>
       </div>
       
       <!-- Pending Todos by Time Windows -->
-      <div v-if="pendingTodos.length > 0" class="todo-section">
+      <div class="todo-section">
         <h3 class="section-title">Pending ({{ pendingTodos.length }})</h3>
         
         <div class="time-grid">
@@ -330,6 +328,16 @@ function handleDragLeave(event: DragEvent) {
   margin-bottom: 24px;
 }
 
+.empty-section {
+  text-align: center;
+  padding: 20px;
+  color: #6b7280;
+  font-style: italic;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 2px dashed #e5e7eb;
+}
+
 .time-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -467,6 +475,12 @@ function handleDragLeave(event: DragEvent) {
   .section-title.overdue {
     color: #fca5a5;
     border-bottom-color: #dc2626;
+  }
+  
+  .empty-section {
+    color: #9ca3af;
+    background: #1f2937;
+    border-color: #4b5563;
   }
   
   .time-quadrant {
