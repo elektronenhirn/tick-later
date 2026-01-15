@@ -9,6 +9,7 @@ const todos = ref<Todo[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const showTodoForm = ref(false);
+const editingTodo = ref<Todo | null>(null);
 
 async function loadTodos() {
   try {
@@ -61,6 +62,33 @@ async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
   } catch (e) {
     error.value = `Failed to update todo: ${e}`;
   }
+}
+
+async function handleEditTodo(todoData: { id: string; title: string; description?: string; revisitAt: string }) {
+  try {
+    const updatedTodo = await invoke<Todo>("update_todo", {
+      id: todoData.id,
+      title: todoData.title,
+      description: todoData.description,
+      revisitAt: new Date(todoData.revisitAt).toISOString(),
+      clearDescription: !todoData.description
+    });
+    const index = todos.value.findIndex(t => t.id === todoData.id);
+    if (index !== -1) {
+      todos.value[index] = updatedTodo;
+    }
+    closeEditForm();
+  } catch (e) {
+    error.value = `Failed to update todo: ${e}`;
+  }
+}
+
+function openEditForm(todo: Todo) {
+  editingTodo.value = todo;
+}
+
+function closeEditForm() {
+  editingTodo.value = null;
 }
 
 async function handleDeleteTodo(todoId: string) {
@@ -124,6 +152,7 @@ onMounted(() => {
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"
         @update-todo="handleUpdateTodo"
+        @edit-todo="openEditForm"
       />
     </div>
 
@@ -134,7 +163,7 @@ onMounted(() => {
       </svg>
     </button>
 
-    <!-- Modal Dialog -->
+    <!-- Add Modal -->
     <Transition name="modal">
       <div v-if="showTodoForm" class="modal-overlay" @click="closeTodoForm">
         <div class="modal-content" @click.stop>
@@ -147,6 +176,23 @@ onMounted(() => {
             </button>
           </div>
           <TodoForm @add-todo="handleAddTodo" />
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Edit Modal -->
+    <Transition name="modal">
+      <div v-if="editingTodo" class="modal-overlay" @click="closeEditForm">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h2>Edit Entry</h2>
+            <button @click="closeEditForm" class="close-btn" title="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <TodoForm :editing-todo="editingTodo" @update-todo="handleEditTodo" />
         </div>
       </div>
     </Transition>

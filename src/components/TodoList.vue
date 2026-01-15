@@ -12,6 +12,7 @@ const emit = defineEmits<{
   deleteTodo: [todoId: string];
   addTodo: [todoData: { title: string; description?: string; revisitAt: string }];
   updateTodo: [todoData: { id: string; revisitAt: string }];
+  editTodo: [todo: Todo];
 }>();
 
 const sortedTodos = computed(() => {
@@ -79,6 +80,10 @@ function handleToggleComplete(todoId: string) {
 
 function handleDeleteTodo(todoId: string) {
   emit("deleteTodo", todoId);
+}
+
+function handleEditTodo(todo: Todo) {
+  emit("editTodo", todo);
 }
 
 function getTimestampForSection(section: string): string {
@@ -182,6 +187,7 @@ function handleDragLeave(event: DragEvent) {
             :todo="todo"
             @toggle-complete="handleToggleComplete"
             @delete-todo="handleDeleteTodo"
+            @edit-todo="handleEditTodo"
           />
         </TransitionGroup>
       </div>
@@ -214,6 +220,7 @@ function handleDragLeave(event: DragEvent) {
                 :todo="todo"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
+                @edit-todo="handleEditTodo"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -242,6 +249,7 @@ function handleDragLeave(event: DragEvent) {
                 :todo="todo"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
+                @edit-todo="handleEditTodo"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -270,6 +278,7 @@ function handleDragLeave(event: DragEvent) {
                 :todo="todo"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
+                @edit-todo="handleEditTodo"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -298,6 +307,7 @@ function handleDragLeave(event: DragEvent) {
                 :todo="todo"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
+                @edit-todo="handleEditTodo"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -324,6 +334,7 @@ function handleDragLeave(event: DragEvent) {
             :todo="todo"
             @toggle-complete="handleToggleComplete"
             @delete-todo="handleDeleteTodo"
+            @edit-todo="handleEditTodo"
           />
         </TransitionGroup>
       </div>

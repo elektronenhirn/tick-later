@@ -9,6 +9,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggleComplete: [todoId: string];
   deleteTodo: [todoId: string];
+  editTodo: [todo: Todo];
 }>();
 
 const revisitDate = computed(() => {
@@ -40,6 +41,10 @@ function handleDelete() {
   if (confirm("Are you sure you want to delete this entry?")) {
     emit("deleteTodo", props.todo.id);
   }
+}
+
+function handleEdit() {
+  emit("editTodo", props.todo);
 }
 
 function handleDragStart(event: DragEvent) {
@@ -77,6 +82,12 @@ function handleDragStart(event: DragEvent) {
         </button>
 
         <div class="item-actions">
+          <button class="action-btn action-btn--edit" @click="handleEdit" title="Edit entry">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
           <button class="action-btn action-btn--delete" @click="handleDelete" title="Delete entry">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -217,6 +228,11 @@ function handleDragStart(event: DragEvent) {
 .action-btn:hover {
   color: var(--ink);
   border-color: var(--ink);
+}
+
+.action-btn--edit:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .action-btn--delete:hover {

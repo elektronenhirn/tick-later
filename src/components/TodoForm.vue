@@ -1,26 +1,65 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch, computed } from "vue";
+import type { Todo } from "../types/todo";
+
+const props = defineProps<{
+  editingTodo?: Todo;
+}>();
 
 const emit = defineEmits<{
   addTodo: [todo: { title: string; description?: string; revisitAt: string }];
+  updateTodo: [todo: { id: string; title: string; description?: string; revisitAt: string }];
 }>();
 
 const title = ref("");
 const description = ref("");
 const revisitAt = ref("");
 
-function addTodo() {
-  if (!title.value.trim() || !revisitAt.value) return;
+const isEditMode = computed(() => !!props.editingTodo);
 
-  emit("addTodo", {
-    title: title.value.trim(),
-    description: description.value.trim() || undefined,
-    revisitAt: revisitAt.value
-  });
+// Watch for editingTodo changes to populate the form
+watch(() => props.editingTodo, (todo) => {
+  if (todo) {
+    title.value = todo.title;
+    description.value = todo.description || "";
+    // Format the date for datetime-local input
+    const date = new Date(todo.revisit_at);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    revisitAt.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+  } else {
+    resetForm();
+  }
+}, { immediate: true });
 
+function resetForm() {
   title.value = "";
   description.value = "";
   revisitAt.value = "";
+}
+
+function handleSubmit() {
+  if (!title.value.trim() || !revisitAt.value) return;
+
+  if (isEditMode.value && props.editingTodo) {
+    emit("updateTodo", {
+      id: props.editingTodo.id,
+      title: title.value.trim(),
+      description: description.value.trim() || undefined,
+      revisitAt: revisitAt.value
+    });
+  } else {
+    emit("addTodo", {
+      title: title.value.trim(),
+      description: description.value.trim() || undefined,
+      revisitAt: revisitAt.value
+    });
+  }
+
+  resetForm();
 }
 
 function handleDrop(event: DragEvent) {
@@ -70,7 +109,7 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
 
 <template>
   <div class="todo-form">
-    <form @submit.prevent="addTodo" class="form">
+    <form @submit.prevent="handleSubmit" class="form">
       <div class="form-field">
         <label for="title" class="field-label">
           <span class="label-text">Title</span>
@@ -139,15 +178,18 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
           :disabled="!title.trim() || !revisitAt"
           class="submit-btn"
         >
-          <span class="btn-text">Add Entry</span>
+          <span class="btn-text">{{ isEditMode ? 'Save Changes' : 'Add Entry' }}</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
+            <path v-if="isEditMode" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline v-if="isEditMode" points="17 21 17 13 7 13 7 21"/>
+            <polyline v-if="isEditMode" points="7 3 7 8 15 8"/>
+            <path v-if="!isEditMode" d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
         </button>
       </div>
     </form>
 
-    <div class="drop-zone-hint">
+    <div v-if="!isEditMode" class="drop-zone-hint">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
         <polyline points="7 10 12 15 17 10"/>

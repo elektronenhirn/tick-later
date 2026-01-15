@@ -99,18 +99,38 @@ fn toggle_todo_completion(app_handle: AppHandle, id: String) -> Result<bool, Str
 }
 
 #[tauri::command]
-fn update_todo(app_handle: AppHandle, id: String, revisit_at: Option<DateTime<Utc>>) -> Result<(), String> {
+fn update_todo(
+    app_handle: AppHandle,
+    id: String,
+    title: Option<String>,
+    description: Option<String>,
+    revisit_at: Option<DateTime<Utc>>,
+    clear_description: Option<bool>,
+) -> Result<Todo, String> {
     let mut todos = load_todos_from_file(&app_handle)?;
-    
+
     let todo = todos.iter_mut()
         .find(|t| t.id == id)
         .ok_or("Todo not found")?;
-    
+
+    if let Some(new_title) = title {
+        todo.title = new_title;
+    }
+
+    if clear_description.unwrap_or(false) {
+        todo.description = None;
+    } else if let Some(new_description) = description {
+        todo.description = Some(new_description);
+    }
+
     if let Some(new_revisit_at) = revisit_at {
         todo.revisit_at = new_revisit_at;
     }
-    
-    save_todos_to_file(&app_handle, &todos)
+
+    let updated_todo = todo.clone();
+    save_todos_to_file(&app_handle, &todos)?;
+
+    Ok(updated_todo)
 }
 
 #[tauri::command]
