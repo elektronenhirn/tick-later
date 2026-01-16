@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Todo } from "../types/todo";
+import LinkifiedText from "./LinkifiedText.vue";
 
 const props = defineProps<{
   todo: Todo;
@@ -102,10 +103,12 @@ function handleDragStart(event: DragEvent) {
       </header>
 
       <div class="item-content">
-        <h3 class="item-title">{{ todo.title }}</h3>
+        <h3 class="item-title">
+          <LinkifiedText :text="todo.title" />
+        </h3>
 
         <p v-if="todo.description" class="item-description">
-          {{ todo.description }}
+          <LinkifiedText :text="todo.description" />
         </p>
       </div>
 
