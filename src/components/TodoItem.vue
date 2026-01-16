@@ -81,6 +81,10 @@ function handleDragStart(event: DragEvent) {
           </svg>
         </button>
 
+        <h3 class="item-title">
+          <LinkifiedText :text="todo.title" />
+        </h3>
+
         <div class="item-actions">
           <button class="action-btn action-btn--edit" @click="handleEdit" title="Edit entry">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -101,28 +105,17 @@ function handleDragStart(event: DragEvent) {
         </div>
       </header>
 
-      <div class="item-content">
-        <h3 class="item-title">
-          <LinkifiedText :text="todo.title" />
-        </h3>
-
-        <p v-if="todo.description" class="item-description">
+      <div class="item-content" v-if="todo.description">
+        <p class="item-description">
           <LinkifiedText :text="todo.description" />
         </p>
       </div>
 
       <footer class="item-footer">
-        <div class="schedule" :class="{ 'schedule--overdue': isOverdue }">
-          <span class="schedule-label">Due</span>
-          <time class="schedule-time" :datetime="todo.revisit_at" :title="revisitDate.full">
-            {{ revisitDate.date }} at {{ revisitDate.time }}
-          </time>
-        </div>
-
-        <div class="created">
-          <span class="created-label">Added</span>
-          <time class="created-date">{{ createdDate }}</time>
-        </div>
+        <time class="schedule-time" :datetime="todo.revisit_at" :title="revisitDate.full">
+          DUE {{ revisitDate.date }} at {{ revisitDate.time }}
+        </time>
+        <time class="created-date">ADDED {{ createdDate }}</time>
       </footer>
     </div>
   </article>
@@ -156,22 +149,23 @@ function handleDragStart(event: DragEvent) {
 
 .item-body {
   flex: 1;
-  padding: 16px 18px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
 .item-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .checkbox {
   width: 22px;
   height: 22px;
+  flex-shrink: 0;
   border: 2px solid var(--ink-light);
   background: transparent;
   cursor: pointer;
@@ -196,6 +190,7 @@ function handleDragStart(event: DragEvent) {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .action-btn {
@@ -259,11 +254,13 @@ function handleDragStart(event: DragEvent) {
 }
 
 .item-title {
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 600;
   color: var(--ink);
-  margin: 0 0 6px;
+  margin: 0;
   line-height: 1.4;
   word-wrap: break-word;
 }
@@ -289,42 +286,21 @@ function handleDragStart(event: DragEvent) {
 .item-footer {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 16px;
   padding-top: 8px;
   border-top: 1px dashed var(--rule-line);
 }
 
-.schedule,
-.created {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.schedule-label,
-.created-label {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-light);
-}
-
 .schedule-time {
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   color: var(--ink);
 }
 
-.schedule--overdue .schedule-time {
-  font-weight: 600;
-}
-
 .created-date {
-  font-family: var(--font-body);
-  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   color: var(--ink-light);
 }
 
