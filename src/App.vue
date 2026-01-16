@@ -225,6 +225,7 @@ onUnmounted(() => {
     <div v-else class="app-content">
       <TodoList
         :todos="todos"
+        :database-path="currentDbPath"
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"
@@ -419,7 +420,7 @@ onUnmounted(() => {
   z-index: 1;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 48px 120px;
+  padding: 0 48px 48px;
 }
 
 .error-notice {
@@ -647,7 +648,7 @@ onUnmounted(() => {
   }
 
   .app-content {
-    padding: 0 24px 100px;
+    padding: 0 24px 40px;
   }
 
   .compose-btn {

@@ -21,6 +21,7 @@ onUnmounted(() => {
 
 const props = defineProps<{
   todos: Todo[];
+  databasePath?: string;
 }>();
 
 const emit = defineEmits<{
@@ -354,6 +355,12 @@ function handleDragLeave(event: DragEvent) {
         </TransitionGroup>
       </div>
     </section>
+
+    <!-- Database Info -->
+    <footer class="database-info" v-if="databasePath">
+      <span class="db-label">Database:</span>
+      <span class="db-path">{{ databasePath }}</span>
+    </footer>
   </div>
 </template>
 
@@ -612,5 +619,29 @@ function handleDragLeave(event: DragEvent) {
   .time-cell {
     min-height: 160px;
   }
+}
+
+/* Database Info Footer */
+.database-info {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule-line);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.db-path {
+  color: var(--ink);
+  word-break: break-all;
 }
 </style>
