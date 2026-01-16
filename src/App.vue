@@ -245,12 +245,12 @@ onMounted(() => {
 }
 
 .logo-mark {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   background: var(--ink);
   color: var(--paper);
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -530,9 +530,9 @@ onMounted(() => {
   }
 
   .logo-mark {
-    width: 48px;
-    height: 48px;
-    font-size: 1.25rem;
+    width: 52px;
+    height: 52px;
+    font-size: 1.4rem;
   }
 
   .brand-text h1 {
