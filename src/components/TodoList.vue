@@ -1,7 +1,23 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import type { Todo } from "../types/todo";
 import TodoItem from "./TodoItem.vue";
+
+// Reactive current time that updates every minute
+const now = ref(new Date());
+let timeUpdateInterval: number | null = null;
+
+onMounted(() => {
+  timeUpdateInterval = window.setInterval(() => {
+    now.value = new Date();
+  }, 60000); // Update every minute
+});
+
+onUnmounted(() => {
+  if (timeUpdateInterval !== null) {
+    clearInterval(timeUpdateInterval);
+  }
+});
 
 const props = defineProps<{
   todos: Todo[];
@@ -24,24 +40,23 @@ const sortedTodos = computed(() => {
   });
 });
 
-const now = new Date();
 const overdueTodos = computed(() =>
-  sortedTodos.value.filter(t => !t.completed && new Date(t.revisit_at) < now)
+  sortedTodos.value.filter(t => !t.completed && new Date(t.revisit_at) < now.value)
 );
 const pendingTodos = computed(() =>
-  sortedTodos.value.filter(t => !t.completed && new Date(t.revisit_at) >= now)
+  sortedTodos.value.filter(t => !t.completed && new Date(t.revisit_at) >= now.value)
 );
 const completedTodos = computed(() => sortedTodos.value.filter(t => t.completed));
 
 const categorizedPendingTodos = computed(() => {
-  const now = new Date();
-  const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const in4Hours = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-  const tomorrow = new Date(now);
+  const currentTime = now.value;
+  const in2Hours = new Date(currentTime.getTime() + 2 * 60 * 60 * 1000);
+  const in4Hours = new Date(currentTime.getTime() + 4 * 60 * 60 * 1000);
+  const tomorrow = new Date(currentTime);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
 
-  const nextWeek = new Date(now);
+  const nextWeek = new Date(currentTime);
   const daysUntilMonday = (8 - nextWeek.getDay()) % 7;
   if (daysUntilMonday === 0) {
     nextWeek.setDate(nextWeek.getDate() + 7);
