@@ -68,8 +68,6 @@ function handleDragStart(event: DragEvent) {
     @dragstart="handleDragStart"
     @dblclick="handleEdit"
   >
-    <div class="item-edge"></div>
-
     <div class="item-body">
       <header class="item-header">
         <button
@@ -154,20 +152,6 @@ function handleDragStart(event: DragEvent) {
   cursor: grabbing;
   transform: translate(0, 0);
   box-shadow: 1px 1px 0 var(--ink-shadow);
-}
-
-.item-edge {
-  width: 6px;
-  background: var(--ink);
-  flex-shrink: 0;
-}
-
-.todo-item--overdue .item-edge {
-  background: var(--urgent);
-}
-
-.todo-item--completed .item-edge {
-  background: var(--success);
 }
 
 .item-body {
