@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Todo } from "./types/todo";
@@ -150,9 +150,26 @@ async function createNewDatabase() {
   }
 }
 
+function handleKeydown(event: KeyboardEvent) {
+  if (event.ctrlKey || event.metaKey) {
+    if (event.key === 'n' || event.key === 'N') {
+      event.preventDefault();
+      createNewDatabase();
+    } else if (event.key === 'o' || event.key === 'O') {
+      event.preventDefault();
+      openDatabase();
+    }
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('keydown', handleKeydown);
   await loadTodos();
   currentDbPath.value = await invoke<string>("get_current_database_path");
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
 });
 </script>
 
