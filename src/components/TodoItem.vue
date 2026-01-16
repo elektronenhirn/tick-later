@@ -137,6 +137,8 @@ function handleDragStart(event: DragEvent) {
   box-sizing: border-box;
   background: var(--paper);
   border: 1px solid var(--rule-line);
+  border-radius: 8px;
+  overflow: hidden;
   position: relative;
   cursor: grab;
   transition: all 0.2s ease;
