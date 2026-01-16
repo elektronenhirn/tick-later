@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Todo } from "./types/todo";
 import TodoList from "./components/TodoList.vue";
 import TodoForm from "./components/TodoForm.vue";
@@ -10,6 +11,7 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const showTodoForm = ref(false);
 const editingTodo = ref<Todo | null>(null);
+const currentDbPath = ref<string>("");
 
 async function loadTodos() {
   try {
@@ -108,8 +110,49 @@ function closeTodoForm() {
   showTodoForm.value = false;
 }
 
-onMounted(() => {
-  loadTodos();
+async function openDatabase() {
+  try {
+    const selected = await open({
+      multiple: false,
+      filters: [{
+        name: 'JSON Database',
+        extensions: ['json']
+      }]
+    });
+
+    if (selected) {
+      await invoke("switch_database", { path: selected });
+      await loadTodos();
+      currentDbPath.value = await invoke<string>("get_current_database_path");
+    }
+  } catch (e) {
+    error.value = `Failed to open database: ${e}`;
+  }
+}
+
+async function createNewDatabase() {
+  try {
+    const selected = await save({
+      filters: [{
+        name: 'JSON Database',
+        extensions: ['json']
+      }],
+      defaultPath: 'todos.json'
+    });
+
+    if (selected) {
+      await invoke("create_new_database", { path: selected });
+      await loadTodos();
+      currentDbPath.value = await invoke<string>("get_current_database_path");
+    }
+  } catch (e) {
+    error.value = `Failed to create database: ${e}`;
+  }
+}
+
+onMounted(async () => {
+  await loadTodos();
+  currentDbPath.value = await invoke<string>("get_current_database_path");
 });
 </script>
 
@@ -127,8 +170,25 @@ onMounted(() => {
             <p class="tagline">a personal journal for tasks</p>
           </div>
         </div>
-        <div class="header-date">
-          {{ new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+        <div class="header-actions">
+          <div class="header-buttons">
+            <button @click="createNewDatabase" class="header-btn" title="New Database (Ctrl+N)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </button>
+            <button @click="openDatabase" class="header-btn" title="Open Database (Ctrl+O)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="header-date">
+            {{ new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+          </div>
         </div>
       </div>
       <div class="header-rule"></div>
@@ -281,13 +341,43 @@ onMounted(() => {
   letter-spacing: 0.02em;
 }
 
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.header-btn {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 2px solid var(--rule-line);
+  color: var(--ink-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.header-btn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: var(--paper-alt);
+}
+
 .header-date {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   color: var(--ink-light);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding-top: 8px;
 }
 
 .header-rule {

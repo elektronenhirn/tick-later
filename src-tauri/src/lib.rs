@@ -1,9 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Todo {
@@ -28,86 +29,99 @@ impl Todo {
     }
 }
 
-fn get_todos_file_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
+// State to track the current database file path
+pub struct DatabasePath(pub Mutex<Option<PathBuf>>);
+
+fn get_default_todos_file_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-    
+
     fs::create_dir_all(&app_data_dir)
         .map_err(|e| format!("Failed to create app data directory: {}", e))?;
-    
+
     Ok(app_data_dir.join("todos.json"))
 }
 
-fn load_todos_from_file(app_handle: &AppHandle) -> Result<Vec<Todo>, String> {
-    let file_path = get_todos_file_path(app_handle)?;
-    
+fn get_todos_file_path(app_handle: &AppHandle, db_path: &State<DatabasePath>) -> Result<PathBuf, String> {
+    let path_guard = db_path.0.lock().map_err(|e| format!("Failed to lock database path: {}", e))?;
+
+    match &*path_guard {
+        Some(path) => Ok(path.clone()),
+        None => get_default_todos_file_path(app_handle),
+    }
+}
+
+fn load_todos_from_file(app_handle: &AppHandle, db_path: &State<DatabasePath>) -> Result<Vec<Todo>, String> {
+    let file_path = get_todos_file_path(app_handle, db_path)?;
+
     if !file_path.exists() {
         return Ok(Vec::new());
     }
-    
+
     let content = fs::read_to_string(&file_path)
         .map_err(|e| format!("Failed to read todos file: {}", e))?;
-    
+
     if content.trim().is_empty() {
         return Ok(Vec::new());
     }
-    
+
     serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse todos file: {}", e))
 }
 
-fn save_todos_to_file(app_handle: &AppHandle, todos: &[Todo]) -> Result<(), String> {
-    let file_path = get_todos_file_path(app_handle)?;
+fn save_todos_to_file(app_handle: &AppHandle, db_path: &State<DatabasePath>, todos: &[Todo]) -> Result<(), String> {
+    let file_path = get_todos_file_path(app_handle, db_path)?;
     let content = serde_json::to_string_pretty(todos)
         .map_err(|e| format!("Failed to serialize todos: {}", e))?;
-    
+
     fs::write(&file_path, content)
         .map_err(|e| format!("Failed to write todos file: {}", e))
 }
 
 #[tauri::command]
-fn load_todos(app_handle: AppHandle) -> Result<Vec<Todo>, String> {
-    load_todos_from_file(&app_handle)
+fn load_todos(app_handle: AppHandle, db_path: State<DatabasePath>) -> Result<Vec<Todo>, String> {
+    load_todos_from_file(&app_handle, &db_path)
 }
 
 #[tauri::command]
-fn save_todo(app_handle: AppHandle, title: String, description: Option<String>, revisit_at: DateTime<Utc>) -> Result<Todo, String> {
-    let mut todos = load_todos_from_file(&app_handle)?;
+fn save_todo(app_handle: AppHandle, db_path: State<DatabasePath>, title: String, description: Option<String>, revisit_at: DateTime<Utc>) -> Result<Todo, String> {
+    let mut todos = load_todos_from_file(&app_handle, &db_path)?;
     let new_todo = Todo::new(title, description, revisit_at);
-    
+
     todos.push(new_todo.clone());
-    save_todos_to_file(&app_handle, &todos)?;
-    
+    save_todos_to_file(&app_handle, &db_path, &todos)?;
+
     Ok(new_todo)
 }
 
 #[tauri::command]
-fn toggle_todo_completion(app_handle: AppHandle, id: String) -> Result<bool, String> {
-    let mut todos = load_todos_from_file(&app_handle)?;
-    
+fn toggle_todo_completion(app_handle: AppHandle, db_path: State<DatabasePath>, id: String) -> Result<bool, String> {
+    let mut todos = load_todos_from_file(&app_handle, &db_path)?;
+
     let todo = todos.iter_mut()
         .find(|t| t.id == id)
         .ok_or("Todo not found")?;
-    
+
     todo.completed = !todo.completed;
     let new_status = todo.completed;
-    
-    save_todos_to_file(&app_handle, &todos)?;
+
+    save_todos_to_file(&app_handle, &db_path, &todos)?;
     Ok(new_status)
 }
 
 #[tauri::command]
 fn update_todo(
     app_handle: AppHandle,
+    db_path: State<DatabasePath>,
     id: String,
     title: Option<String>,
     description: Option<String>,
     revisit_at: Option<DateTime<Utc>>,
     clear_description: Option<bool>,
 ) -> Result<Todo, String> {
-    let mut todos = load_todos_from_file(&app_handle)?;
+    let mut todos = load_todos_from_file(&app_handle, &db_path)?;
 
     let todo = todos.iter_mut()
         .find(|t| t.id == id)
@@ -128,28 +142,70 @@ fn update_todo(
     }
 
     let updated_todo = todo.clone();
-    save_todos_to_file(&app_handle, &todos)?;
+    save_todos_to_file(&app_handle, &db_path, &todos)?;
 
     Ok(updated_todo)
 }
 
 #[tauri::command]
-fn delete_todo(app_handle: AppHandle, id: String) -> Result<(), String> {
-    let mut todos = load_todos_from_file(&app_handle)?;
+fn delete_todo(app_handle: AppHandle, db_path: State<DatabasePath>, id: String) -> Result<(), String> {
+    let mut todos = load_todos_from_file(&app_handle, &db_path)?;
     todos.retain(|t| t.id != id);
-    save_todos_to_file(&app_handle, &todos)
+    save_todos_to_file(&app_handle, &db_path, &todos)
+}
+
+#[tauri::command]
+fn switch_database(db_path: State<DatabasePath>, path: String) -> Result<(), String> {
+    let new_path = PathBuf::from(&path);
+
+    // Verify the file exists and is readable
+    if !new_path.exists() {
+        // Create an empty database file
+        fs::write(&new_path, "[]")
+            .map_err(|e| format!("Failed to create database file: {}", e))?;
+    }
+
+    let mut path_guard = db_path.0.lock().map_err(|e| format!("Failed to lock database path: {}", e))?;
+    *path_guard = Some(new_path);
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_current_database_path(app_handle: AppHandle, db_path: State<DatabasePath>) -> Result<String, String> {
+    let file_path = get_todos_file_path(&app_handle, &db_path)?;
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn create_new_database(db_path: State<DatabasePath>, path: String) -> Result<(), String> {
+    let new_path = PathBuf::from(&path);
+
+    // Create an empty database file
+    fs::write(&new_path, "[]")
+        .map_err(|e| format!("Failed to create database file: {}", e))?;
+
+    let mut path_guard = db_path.0.lock().map_err(|e| format!("Failed to lock database path: {}", e))?;
+    *path_guard = Some(new_path);
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .manage(DatabasePath(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             load_todos,
             save_todo,
             toggle_todo_completion,
             update_todo,
-            delete_todo
+            delete_todo,
+            switch_database,
+            get_current_database_path,
+            create_new_database
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
