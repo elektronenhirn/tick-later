@@ -373,12 +373,9 @@ function handleDragLeave(event: DragEvent) {
   transform: rotate(-1deg);
 }
 
-.section-badge--overdue {
-  color: var(--urgent);
-}
-
+.section-badge--overdue,
 .section-badge--completed {
-  color: var(--success);
+  color: var(--ink);
 }
 
 .section-title {
@@ -419,29 +416,10 @@ function handleDragLeave(event: DragEvent) {
 }
 
 /* Overdue styling */
-.section--overdue .section-header {
-  border-bottom-color: var(--urgent);
-}
-
-.section--overdue .section-title {
-  color: var(--urgent);
-}
-
 .section--overdue .section-content {
   background: var(--paper-alt);
   border: 2px solid var(--rule-line);
   padding: 20px;
-  position: relative;
-}
-
-.section--overdue .section-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--urgent);
 }
 
 /* Completed styling */
@@ -449,25 +427,10 @@ function handleDragLeave(event: DragEvent) {
   opacity: 0.8;
 }
 
-.section--completed .section-header {
-  border-bottom-color: var(--success);
-}
-
 .section--completed .section-content {
   background: var(--paper-alt);
   border: 2px solid var(--rule-line);
   padding: 20px;
-  position: relative;
-}
-
-.section--completed .section-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--success);
 }
 
 /* Time Grid */
@@ -489,30 +452,6 @@ function handleDragLeave(event: DragEvent) {
   position: relative;
 }
 
-.time-cell::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-}
-
-.time-cell--urgent::before {
-  background: var(--urgent);
-}
-
-.time-cell--soon::before {
-  background: var(--soon);
-}
-
-.time-cell--tomorrow::before {
-  background: var(--tomorrow);
-}
-
-.time-cell--future::before {
-  background: var(--future);
-}
 
 .cell-header {
   display: flex;
@@ -529,22 +468,6 @@ function handleDragLeave(event: DragEvent) {
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.01em;
-}
-
-.time-cell--urgent .cell-label {
-  color: var(--urgent);
-}
-
-.time-cell--soon .cell-label {
-  color: var(--soon);
-}
-
-.time-cell--tomorrow .cell-label {
-  color: var(--tomorrow);
-}
-
-.time-cell--future .cell-label {
-  color: var(--future);
 }
 
 .cell-count {

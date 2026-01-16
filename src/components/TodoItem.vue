@@ -319,7 +319,6 @@ function handleDragStart(event: DragEvent) {
 }
 
 .schedule--overdue .schedule-time {
-  color: var(--urgent);
   font-weight: 600;
 }
 
@@ -338,14 +337,6 @@ function handleDragStart(event: DragEvent) {
   border-top-color: transparent;
 }
 
-/* Overdue state */
-.todo-item--overdue {
-  background: var(--urgent-bg);
-}
-
-.todo-item--overdue .checkbox {
-  border-color: var(--urgent);
-}
 
 /* Dark mode adjustments are handled by CSS variables in App.vue */
 </style>
