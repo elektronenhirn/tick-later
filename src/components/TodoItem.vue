@@ -66,6 +66,7 @@ function handleDragStart(event: DragEvent) {
     }"
     draggable="true"
     @dragstart="handleDragStart"
+    @dblclick="handleEdit"
   >
     <div class="item-edge"></div>
 
