@@ -165,8 +165,8 @@ onMounted(() => {
 
     <!-- Add Modal -->
     <Transition name="modal">
-      <div v-if="showTodoForm" class="modal-overlay" @click="closeTodoForm">
-        <div class="modal-content" @click.stop>
+      <div v-if="showTodoForm" class="modal-overlay" @mousedown.self="closeTodoForm">
+        <div class="modal-content">
           <div class="modal-header">
             <h2>New Entry</h2>
             <button @click="closeTodoForm" class="close-btn" title="Close">
@@ -182,8 +182,8 @@ onMounted(() => {
 
     <!-- Edit Modal -->
     <Transition name="modal">
-      <div v-if="editingTodo" class="modal-overlay" @click="closeEditForm">
-        <div class="modal-content" @click.stop>
+      <div v-if="editingTodo" class="modal-overlay" @mousedown.self="closeEditForm">
+        <div class="modal-content">
           <div class="modal-header">
             <h2>Edit Entry</h2>
             <button @click="closeEditForm" class="close-btn" title="Close">
