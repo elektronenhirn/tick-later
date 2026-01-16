@@ -383,7 +383,7 @@ function handleDragLeave(event: DragEvent) {
 
 .section-title {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.02em;
@@ -427,6 +427,23 @@ function handleDragLeave(event: DragEvent) {
   color: var(--urgent);
 }
 
+.section--overdue .section-content {
+  background: var(--paper-alt);
+  border: 2px solid var(--rule-line);
+  padding: 20px;
+  position: relative;
+}
+
+.section--overdue .section-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--urgent);
+}
+
 /* Completed styling */
 .section--completed {
   opacity: 0.8;
@@ -434,6 +451,23 @@ function handleDragLeave(event: DragEvent) {
 
 .section--completed .section-header {
   border-bottom-color: var(--success);
+}
+
+.section--completed .section-content {
+  background: var(--paper-alt);
+  border: 2px solid var(--rule-line);
+  padding: 20px;
+  position: relative;
+}
+
+.section--completed .section-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--success);
 }
 
 /* Time Grid */
@@ -491,7 +525,7 @@ function handleDragLeave(event: DragEvent) {
 
 .cell-label {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.01em;

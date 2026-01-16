@@ -579,7 +579,7 @@ onMounted(() => {
   --paper: #faf8f3;
   --paper-alt: #f5f2ea;
   --ink: #1a1614;
-  --ink-light: #6b6560;
+  --ink-light: #524d48;
   --ink-shadow: rgba(26, 22, 20, 0.25);
   --rule-line: #d4cfc5;
 
@@ -655,7 +655,7 @@ body {
     --paper: #1c1917;
     --paper-alt: #292524;
     --ink: #fafaf9;
-    --ink-light: #a8a29e;
+    --ink-light: #c8c4c0;
     --ink-shadow: rgba(0, 0, 0, 0.5);
     --rule-line: #44403c;
 
