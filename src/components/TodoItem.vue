@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import type { Todo } from "../types/todo";
 import LinkifiedText from "./LinkifiedText.vue";
 
@@ -11,7 +11,45 @@ const emit = defineEmits<{
   toggleComplete: [todoId: string];
   deleteTodo: [todoId: string];
   editTodo: [todo: Todo];
+  moveTodo: [todoId: string, section: string];
 }>();
+
+// Context menu state
+const showContextMenu = ref(false);
+const menuPosition = ref({ x: 0, y: 0 });
+
+const menuOptions = [
+  { label: "Next 2 Hours", section: "next2Hours" },
+  { label: "2-4 Hours", section: "next2To4Hours" },
+  { label: "Tomorrow & Later", section: "tomorrow" },
+  { label: "Next Week +", section: "nextWeek" },
+];
+
+function handleContextMenu(event: MouseEvent) {
+  event.preventDefault();
+  menuPosition.value = { x: event.clientX, y: event.clientY };
+  showContextMenu.value = true;
+}
+
+function handleMoveToSection(section: string) {
+  emit("moveTodo", props.todo.id, section);
+  showContextMenu.value = false;
+}
+
+// Close menu when clicking outside
+function handleClickOutside() {
+  if (showContextMenu.value) {
+    showContextMenu.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
+});
 
 const revisitDate = computed(() => {
   const date = new Date(props.todo.revisit_at);
@@ -67,6 +105,7 @@ function handleDragStart(event: DragEvent) {
     draggable="true"
     @dragstart="handleDragStart"
     @dblclick="handleEdit"
+    @contextmenu="handleContextMenu"
   >
     <div class="item-body">
       <header class="item-header">
@@ -118,6 +157,26 @@ function handleDragStart(event: DragEvent) {
         <time class="created-date">ADDED {{ createdDate }}</time>
       </footer>
     </div>
+
+    <!-- Context Menu -->
+    <Teleport to="body">
+      <div
+        v-if="showContextMenu"
+        class="context-menu"
+        :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }"
+        @click.stop
+      >
+        <div class="context-menu-header">Move to...</div>
+        <button
+          v-for="option in menuOptions"
+          :key="option.section"
+          class="context-menu-item"
+          @click="handleMoveToSection(option.section)"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+    </Teleport>
   </article>
 </template>
 
@@ -315,4 +374,46 @@ function handleDragStart(event: DragEvent) {
 
 
 /* Dark mode adjustments are handled by CSS variables in App.vue */
+
+/* Context Menu - using :global because it's teleported to body */
+:global(.context-menu) {
+  position: fixed;
+  z-index: 1000;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink-shadow);
+  min-width: 160px;
+  padding: 4px 0;
+}
+
+:global(.context-menu-header) {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  padding: 8px 14px 6px;
+  border-bottom: 1px dashed var(--rule-line);
+  margin-bottom: 4px;
+}
+
+:global(.context-menu-item) {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+:global(.context-menu-item:hover) {
+  background: var(--paper-alt);
+  color: var(--accent);
+}
 </style>
