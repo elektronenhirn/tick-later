@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use tauri::{AppHandle, Manager, State};
 
+mod terminal;
+use terminal::{TerminalManager, TerminalState};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Todo {
     pub id: String,
@@ -191,12 +194,84 @@ fn create_new_database(db_path: State<DatabasePath>, path: String) -> Result<(),
     Ok(())
 }
 
+// Terminal commands
+#[tauri::command]
+fn create_terminal_session(
+    app_handle: AppHandle,
+    terminal_state: State<TerminalState>,
+    todo_id: String,
+    working_dir: Option<String>,
+) -> Result<(), String> {
+    let mut manager = terminal_state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to lock terminal state: {}", e))?;
+
+    manager.create_session(todo_id, app_handle, working_dir)
+}
+
+#[tauri::command]
+fn write_to_terminal(
+    terminal_state: State<TerminalState>,
+    todo_id: String,
+    data: String,
+) -> Result<(), String> {
+    let mut manager = terminal_state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to lock terminal state: {}", e))?;
+
+    manager.write_to_session(&todo_id, &data)
+}
+
+#[tauri::command]
+fn resize_terminal(
+    terminal_state: State<TerminalState>,
+    todo_id: String,
+    rows: u16,
+    cols: u16,
+) -> Result<(), String> {
+    let mut manager = terminal_state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to lock terminal state: {}", e))?;
+
+    manager.resize_session(&todo_id, rows, cols)
+}
+
+#[tauri::command]
+fn close_terminal_session(
+    terminal_state: State<TerminalState>,
+    todo_id: String,
+) -> Result<(), String> {
+    let mut manager = terminal_state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to lock terminal state: {}", e))?;
+
+    manager.close_session(&todo_id)
+}
+
+#[tauri::command]
+fn has_terminal_session(
+    terminal_state: State<TerminalState>,
+    todo_id: String,
+) -> Result<bool, String> {
+    let manager = terminal_state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to lock terminal state: {}", e))?;
+
+    Ok(manager.has_session(&todo_id))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(DatabasePath(Mutex::new(None)))
+        .manage(TerminalState(Mutex::new(TerminalManager::new())))
         .invoke_handler(tauri::generate_handler![
             load_todos,
             save_todo,
@@ -205,7 +280,12 @@ pub fn run() {
             delete_todo,
             switch_database,
             get_current_database_path,
-            create_new_database
+            create_new_database,
+            create_terminal_session,
+            write_to_terminal,
+            resize_terminal,
+            close_terminal_session,
+            has_terminal_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

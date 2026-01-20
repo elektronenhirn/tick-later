@@ -5,6 +5,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Todo } from "./types/todo";
 import TodoList from "./components/TodoList.vue";
 import TodoForm from "./components/TodoForm.vue";
+import TerminalPanel from "./components/TerminalPanel.vue";
 
 const todos = ref<Todo[]>([]);
 const loading = ref(true);
@@ -12,6 +13,10 @@ const error = ref<string | null>(null);
 const showTodoForm = ref(false);
 const editingTodo = ref<Todo | null>(null);
 const currentDbPath = ref<string>("");
+
+// Terminal state
+const terminalVisible = ref(false);
+const activeTerminalTodo = ref<Todo | null>(null);
 
 async function loadTodos() {
   try {
@@ -108,6 +113,15 @@ function openTodoForm() {
 
 function closeTodoForm() {
   showTodoForm.value = false;
+}
+
+function handleOpenTerminal(todo: Todo) {
+  activeTerminalTodo.value = todo;
+  terminalVisible.value = true;
+}
+
+function handleCloseTerminal() {
+  terminalVisible.value = false;
 }
 
 async function openDatabase() {
@@ -231,6 +245,7 @@ onUnmounted(() => {
         @add-todo="handleAddTodo"
         @update-todo="handleUpdateTodo"
         @edit-todo="openEditForm"
+        @open-terminal="handleOpenTerminal"
       />
     </div>
 
@@ -274,6 +289,14 @@ onUnmounted(() => {
         </div>
       </div>
     </Transition>
+
+    <!-- Terminal Panel -->
+    <TerminalPanel
+      :todo-id="activeTerminalTodo?.id ?? null"
+      :todo-title="activeTerminalTodo?.title ?? null"
+      :is-visible="terminalVisible"
+      @close="handleCloseTerminal"
+    />
   </main>
 </template>
 

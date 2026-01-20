@@ -12,6 +12,7 @@ const emit = defineEmits<{
   deleteTodo: [todoId: string];
   editTodo: [todo: Todo];
   moveTodo: [todoId: string, section: string];
+  openTerminal: [todo: Todo];
 }>();
 
 // Context menu state
@@ -93,6 +94,10 @@ function handleDragStart(event: DragEvent) {
     event.dataTransfer.effectAllowed = "move";
   }
 }
+
+function handleOpenTerminal() {
+  emit("openTerminal", props.todo);
+}
 </script>
 
 <template>
@@ -125,6 +130,12 @@ function handleDragStart(event: DragEvent) {
         </h3>
 
         <div class="item-actions">
+          <button class="action-btn action-btn--terminal" @click="handleOpenTerminal" title="Open terminal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"/>
+              <line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+          </button>
           <button class="action-btn action-btn--edit" @click="handleEdit" title="Edit entry">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -284,6 +295,11 @@ function handleDragStart(event: DragEvent) {
 .action-btn--delete:hover {
   color: var(--error);
   border-color: var(--error);
+}
+
+.action-btn--terminal:hover {
+  color: var(--future);
+  border-color: var(--future);
 }
 
 .drag-grip {

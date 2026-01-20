@@ -30,6 +30,7 @@ const emit = defineEmits<{
   addTodo: [todoData: { title: string; description?: string; revisitAt: string }];
   updateTodo: [todoData: { id: string; revisitAt: string }];
   editTodo: [todo: Todo];
+  openTerminal: [todo: Todo];
 }>();
 
 const sortedTodos = computed(() => {
@@ -187,6 +188,10 @@ function handleMoveTodo(todoId: string, section: string) {
     revisitAt: newRevisitAt
   });
 }
+
+function handleOpenTerminal(todo: Todo) {
+  emit("openTerminal", todo);
+}
 </script>
 
 <template>
@@ -213,6 +218,7 @@ function handleMoveTodo(todoId: string, section: string) {
             @delete-todo="handleDeleteTodo"
             @edit-todo="handleEditTodo"
             @move-todo="handleMoveTodo"
+            @open-terminal="handleOpenTerminal"
           />
         </TransitionGroup>
       </div>
@@ -365,6 +371,7 @@ function handleMoveTodo(todoId: string, section: string) {
             @delete-todo="handleDeleteTodo"
             @edit-todo="handleEditTodo"
             @move-todo="handleMoveTodo"
+            @open-terminal="handleOpenTerminal"
           />
         </TransitionGroup>
       </div>
