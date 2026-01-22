@@ -217,22 +217,19 @@ onUnmounted(() => {
 
 <style scoped>
 .terminal-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 500px;
+  width: 0;
+  height: 100%;
   background: var(--paper-alt);
   border-left: 2px solid var(--rule-line);
   display: flex;
   flex-direction: column;
-  z-index: 100;
-  transform: translateX(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .terminal-panel.visible {
-  transform: translateX(0);
+  width: 50%;
 }
 
 .terminal-header {
@@ -310,9 +307,14 @@ onUnmounted(() => {
   height: 100%;
 }
 
-@media (max-width: 1024px) {
-  .terminal-panel {
+@media (max-width: 900px) {
+  .terminal-panel.visible {
     width: 100%;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
   }
 }
 </style>

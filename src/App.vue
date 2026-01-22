@@ -188,11 +188,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="app">
-    <div class="paper-texture"></div>
-    <div class="ruled-lines"></div>
+  <div class="app-layout">
+    <main class="app">
+      <div class="paper-texture"></div>
+      <div class="ruled-lines"></div>
 
-    <header class="app-header">
+      <header class="app-header">
       <div class="header-content">
         <div class="brand">
           <div class="logo-mark">TL</div>
@@ -290,6 +291,8 @@ onUnmounted(() => {
       </div>
     </Transition>
 
+    </main>
+
     <!-- Terminal Panel -->
     <TerminalPanel
       :todo-id="activeTerminalTodo?.id ?? null"
@@ -297,24 +300,33 @@ onUnmounted(() => {
       :is-visible="terminalVisible"
       @close="handleCloseTerminal"
     />
-  </main>
+  </div>
 </template>
 
 <style scoped>
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
 .app {
-  min-height: 100vh;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
   padding: 0;
-  background:
-    repeating-linear-gradient(
-      transparent,
-      transparent 31px,
-      color-mix(in srgb, var(--rule-line) 50%, transparent) 31px,
-      color-mix(in srgb, var(--rule-line) 50%, transparent) 32px
-    ),
-    var(--paper);
-  background-attachment: local; /* Scrolls with content - much smoother */
+  background-color: var(--paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='32'%3E%3Crect y='31' width='1' height='1' fill='%23d4cfc5' fill-opacity='0.5'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-attachment: local;
   position: relative;
-  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='32'%3E%3Crect y='31' width='1' height='1' fill='%2344403c' fill-opacity='0.5'/%3E%3C/svg%3E");
+  }
 }
 
 .paper-texture {
