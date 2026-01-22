@@ -19,63 +19,74 @@ const emit = defineEmits<{
 }>();
 
 const terminalContainer = ref<HTMLElement | null>(null);
-const isSessionActive = ref(false);
 
-let terminal: Terminal | null = null;
-let fitAddon: FitAddon | null = null;
-let unlistenFn: UnlistenFn | null = null;
-let resizeObserver: ResizeObserver | null = null;
-
-// Track which sessions we've created
+// Store terminal instances per todo
+interface TerminalInstance {
+  terminal: Terminal;
+  fitAddon: FitAddon;
+  element: HTMLDivElement;
+}
+const terminals = new Map<string, TerminalInstance>();
 const activeSessions = new Set<string>();
 
-async function initTerminal() {
-  if (!terminalContainer.value || terminal) return;
+let unlistenFn: UnlistenFn | null = null;
+let resizeObserver: ResizeObserver | null = null;
+let currentTodoId: string | null = null;
 
-  // Check if dark mode is preferred
+function getTerminalTheme() {
   const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return isDark
+    ? {
+        background: "#1c1917",
+        foreground: "#fafaf9",
+        cursor: "#fafaf9",
+        cursorAccent: "#1c1917",
+        selectionBackground: "#44403c",
+      }
+    : {
+        background: "#faf8f3",
+        foreground: "#1a1614",
+        cursor: "#1a1614",
+        cursorAccent: "#faf8f3",
+        selectionBackground: "#d4cfc5",
+      };
+}
 
-  terminal = new Terminal({
+function createTerminalInstance(todoId: string): TerminalInstance {
+  const terminal = new Terminal({
     cursorBlink: true,
     fontSize: 14,
     fontFamily: "'JetBrains Mono', 'SF Mono', Consolas, monospace",
     scrollback: 10000,
     smoothScrollDuration: 100,
-    theme: isDark
-      ? {
-          background: "#1c1917",
-          foreground: "#fafaf9",
-          cursor: "#fafaf9",
-          cursorAccent: "#1c1917",
-          selectionBackground: "#44403c",
-        }
-      : {
-          background: "#faf8f3",
-          foreground: "#1a1614",
-          cursor: "#1a1614",
-          cursorAccent: "#faf8f3",
-          selectionBackground: "#d4cfc5",
-        },
+    theme: getTerminalTheme(),
   });
 
-  fitAddon = new FitAddon();
+  const fitAddon = new FitAddon();
   const webLinksAddon = new WebLinksAddon();
 
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(webLinksAddon);
 
-  terminal.open(terminalContainer.value);
+  // Create a container element for this terminal
+  const element = document.createElement("div");
+  element.className = "terminal-instance";
+  element.style.display = "none";
+  element.style.width = "100%";
+  element.style.height = "100%";
 
-  // Fit the terminal to the container
-  await nextTick();
-  fitAddon.fit();
+  if (terminalContainer.value) {
+    terminalContainer.value.appendChild(element);
+  }
 
-  // Handle user input
+  terminal.open(element);
+
+  // Handle user input for this terminal
   terminal.onData(async (data) => {
-    if (props.todoId && isSessionActive.value) {
+    if (activeSessions.has(todoId)) {
       try {
         await invoke("write_to_terminal", {
-          todoId: props.todoId,
+          todoId: todoId,
           data: data,
         });
       } catch (e) {
@@ -84,51 +95,53 @@ async function initTerminal() {
     }
   });
 
-  // Setup resize observer
-  resizeObserver = new ResizeObserver(() => {
-    if (fitAddon && terminal && props.isVisible) {
-      fitAddon.fit();
-      if (props.todoId && isSessionActive.value) {
-        invoke("resize_terminal", {
-          todoId: props.todoId,
-          rows: terminal.rows,
-          cols: terminal.cols,
-        }).catch(console.error);
-      }
-    }
-  });
-  resizeObserver.observe(terminalContainer.value);
+  return { terminal, fitAddon, element };
+}
 
-  // Listen for terminal output events
-  unlistenFn = await listen<TerminalOutputEvent>("terminal-output", (event) => {
-    if (event.payload.todo_id === props.todoId && terminal) {
-      terminal.write(event.payload.data);
-    }
+function showTerminal(todoId: string) {
+  // Hide all terminals
+  terminals.forEach((instance) => {
+    instance.element.style.display = "none";
+  });
+
+  // Get or create terminal for this todo
+  let instance = terminals.get(todoId);
+  if (!instance) {
+    instance = createTerminalInstance(todoId);
+    terminals.set(todoId, instance);
+  }
+
+  // Show and fit this terminal
+  instance.element.style.display = "block";
+  currentTodoId = todoId;
+
+  nextTick(() => {
+    instance!.fitAddon.fit();
+    instance!.terminal.focus();
   });
 }
 
-async function createSession() {
-  if (!props.todoId || activeSessions.has(props.todoId)) {
-    isSessionActive.value = activeSessions.has(props.todoId || "");
+async function createSession(todoId: string) {
+  if (activeSessions.has(todoId)) {
     return;
   }
 
   try {
     await invoke("create_terminal_session", {
-      todoId: props.todoId,
+      todoId: todoId,
       workingDir: null,
     });
-    activeSessions.add(props.todoId);
-    isSessionActive.value = true;
+    activeSessions.add(todoId);
 
     // Resize after session is created
-    if (terminal && fitAddon) {
+    const instance = terminals.get(todoId);
+    if (instance) {
       await nextTick();
-      fitAddon.fit();
+      instance.fitAddon.fit();
       await invoke("resize_terminal", {
-        todoId: props.todoId,
-        rows: terminal.rows,
-        cols: terminal.cols,
+        todoId: todoId,
+        rows: instance.terminal.rows,
+        cols: instance.terminal.cols,
       });
     }
   } catch (e) {
@@ -136,25 +149,44 @@ async function createSession() {
   }
 }
 
-function clearTerminal() {
-  if (terminal) {
-    terminal.clear();
-  }
+async function initTerminalSystem() {
+  if (!terminalContainer.value) return;
+
+  // Setup resize observer for the container
+  resizeObserver = new ResizeObserver(() => {
+    if (props.isVisible && currentTodoId) {
+      const instance = terminals.get(currentTodoId);
+      if (instance) {
+        instance.fitAddon.fit();
+        if (activeSessions.has(currentTodoId)) {
+          invoke("resize_terminal", {
+            todoId: currentTodoId,
+            rows: instance.terminal.rows,
+            cols: instance.terminal.cols,
+          }).catch(console.error);
+        }
+      }
+    }
+  });
+  resizeObserver.observe(terminalContainer.value);
+
+  // Listen for terminal output events - route to correct terminal
+  unlistenFn = await listen<TerminalOutputEvent>("terminal-output", (event) => {
+    const instance = terminals.get(event.payload.todo_id);
+    if (instance) {
+      instance.terminal.write(event.payload.data);
+    }
+  });
 }
 
 // Watch for todoId changes to switch sessions
 watch(
   () => props.todoId,
-  async (newId, oldId) => {
-    if (newId && newId !== oldId) {
-      // Clear the terminal display when switching
-      clearTerminal();
-
-      // Check if we need to create a new session
+  async (newId) => {
+    if (newId && props.isVisible) {
+      showTerminal(newId);
       if (!activeSessions.has(newId)) {
-        await createSession();
-      } else {
-        isSessionActive.value = true;
+        await createSession(newId);
       }
     }
   }
@@ -166,22 +198,19 @@ watch(
   async (visible) => {
     if (visible && props.todoId) {
       await nextTick();
-      if (fitAddon && terminal) {
-        fitAddon.fit();
-      }
+      showTerminal(props.todoId);
       if (!activeSessions.has(props.todoId)) {
-        await createSession();
+        await createSession(props.todoId);
       }
-      // Focus the terminal when visible
-      terminal?.focus();
     }
   }
 );
 
 onMounted(async () => {
-  await initTerminal();
+  await initTerminalSystem();
   if (props.isVisible && props.todoId) {
-    await createSession();
+    showTerminal(props.todoId);
+    await createSession(props.todoId);
   }
 });
 
@@ -192,9 +221,12 @@ onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect();
   }
-  if (terminal) {
-    terminal.dispose();
-  }
+  // Dispose all terminal instances
+  terminals.forEach((instance) => {
+    instance.terminal.dispose();
+    instance.element.remove();
+  });
+  terminals.clear();
 });
 </script>
 
