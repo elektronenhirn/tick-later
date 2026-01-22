@@ -39,6 +39,8 @@ async function initTerminal() {
     cursorBlink: true,
     fontSize: 14,
     fontFamily: "'JetBrains Mono', 'SF Mono', Consolas, monospace",
+    scrollback: 10000,
+    smoothScrollDuration: 100,
     theme: isDark
       ? {
           background: "#1c1917",
@@ -292,7 +294,7 @@ onUnmounted(() => {
 .terminal-container {
   flex: 1;
   padding: 8px;
-  overflow: hidden;
+  min-height: 0; /* Important for flexbox to allow shrinking */
 }
 
 /* Override xterm default styles to fit container */
@@ -301,7 +303,11 @@ onUnmounted(() => {
 }
 
 .terminal-container :deep(.xterm-viewport) {
-  overflow-y: auto !important;
+  overflow-y: scroll !important;
+}
+
+.terminal-container :deep(.xterm-screen) {
+  height: 100%;
 }
 
 @media (max-width: 1024px) {
