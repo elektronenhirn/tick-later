@@ -14,6 +14,12 @@ pub struct TerminalOutput {
     pub data: String,
 }
 
+/// Event payload for terminal exit
+#[derive(Clone, Serialize)]
+pub struct TerminalExited {
+    pub todo_id: String,
+}
+
 /// Manages a single terminal session
 pub struct TerminalSession {
     pub writer: Box<dyn Write + Send>,
@@ -65,13 +71,25 @@ impl TerminalManager {
             cmd.cwd(dir);
         }
 
-        let child = pair
+        let mut child = pair
             .slave
             .spawn_command(cmd)
             .map_err(|e| format!("Failed to spawn shell: {}", e))?;
 
-        // Drop slave as we don't need it after spawning
-        drop(child);
+        // Spawn a thread to monitor the child process and emit exit event
+        let todo_id_for_child = todo_id.clone();
+        let app_handle_for_child = app_handle.clone();
+        thread::spawn(move || {
+            // Wait for the child process to exit
+            let _ = child.wait();
+            // Emit exit event
+            let _ = app_handle_for_child.emit(
+                "terminal-exited",
+                TerminalExited {
+                    todo_id: todo_id_for_child,
+                },
+            );
+        });
 
         let writer = pair
             .master
@@ -89,7 +107,16 @@ impl TerminalManager {
             let mut buffer = [0u8; 4096];
             loop {
                 match reader.read(&mut buffer) {
-                    Ok(0) => break, // EOF
+                    Ok(0) => {
+                        // EOF - shell exited
+                        let _ = app_handle.emit(
+                            "terminal-exited",
+                            TerminalExited {
+                                todo_id: todo_id_clone.clone(),
+                            },
+                        );
+                        break;
+                    }
                     Ok(n) => {
                         let data = String::from_utf8_lossy(&buffer[..n]).to_string();
                         let _ = app_handle.emit(
@@ -100,7 +127,16 @@ impl TerminalManager {
                             },
                         );
                     }
-                    Err(_) => break,
+                    Err(_) => {
+                        // Error - also treat as exit
+                        let _ = app_handle.emit(
+                            "terminal-exited",
+                            TerminalExited {
+                                todo_id: todo_id_clone.clone(),
+                            },
+                        );
+                        break;
+                    }
                 }
             }
         });
@@ -120,17 +156,17 @@ impl TerminalManager {
         let session = self
             .sessions
             .get_mut(todo_id)
-            .ok_or_else(|| format!("No terminal session for todo: {}", todo_id))?;
+            .ok_or_else(|| "session_not_found".to_string())?;
 
         session
             .writer
             .write_all(data.as_bytes())
-            .map_err(|e| format!("Failed to write to terminal: {}", e))?;
+            .map_err(|_| "write_failed".to_string())?;
 
         session
             .writer
             .flush()
-            .map_err(|e| format!("Failed to flush terminal: {}", e))?;
+            .map_err(|_| "flush_failed".to_string())?;
 
         Ok(())
     }

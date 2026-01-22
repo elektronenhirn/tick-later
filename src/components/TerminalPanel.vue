@@ -6,7 +6,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import type { TerminalOutputEvent } from "../types/terminal";
+import type { TerminalOutputEvent, TerminalExitedEvent } from "../types/terminal";
 
 const props = defineProps<{
   todoId: string | null;
@@ -29,7 +29,8 @@ interface TerminalInstance {
 const terminals = new Map<string, TerminalInstance>();
 const activeSessions = new Set<string>();
 
-let unlistenFn: UnlistenFn | null = null;
+let unlistenOutputFn: UnlistenFn | null = null;
+let unlistenExitFn: UnlistenFn | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let currentTodoId: string | null = null;
 
@@ -90,7 +91,7 @@ function createTerminalInstance(todoId: string): TerminalInstance {
           data: data,
         });
       } catch (e) {
-        console.error("Failed to write to terminal:", e);
+        console.log("Write to terminal failed:", e);
       }
     }
   });
@@ -149,6 +150,33 @@ async function createSession(todoId: string) {
   }
 }
 
+async function handleSessionExit(todoId: string) {
+  console.log("Terminal exited for:", todoId);
+
+  // Mark session as inactive
+  activeSessions.delete(todoId);
+
+  // Close the old session on the backend
+  try {
+    await invoke("close_terminal_session", { todoId: todoId });
+  } catch (e) {
+    // Ignore - session might already be closed
+  }
+
+  // Clean up the terminal instance
+  const instance = terminals.get(todoId);
+  if (instance) {
+    instance.terminal.dispose();
+    instance.element.remove();
+    terminals.delete(todoId);
+  }
+
+  // Close the panel if this was the active terminal
+  if (currentTodoId === todoId) {
+    emit("close");
+  }
+}
+
 async function initTerminalSystem() {
   if (!terminalContainer.value) return;
 
@@ -171,11 +199,17 @@ async function initTerminalSystem() {
   resizeObserver.observe(terminalContainer.value);
 
   // Listen for terminal output events - route to correct terminal
-  unlistenFn = await listen<TerminalOutputEvent>("terminal-output", (event) => {
+  unlistenOutputFn = await listen<TerminalOutputEvent>("terminal-output", (event) => {
     const instance = terminals.get(event.payload.todo_id);
     if (instance) {
       instance.terminal.write(event.payload.data);
     }
+  });
+
+  // Listen for terminal exit events - close the panel
+  unlistenExitFn = await listen<TerminalExitedEvent>("terminal-exited", (event) => {
+    console.log("Received terminal-exited event:", event.payload);
+    handleSessionExit(event.payload.todo_id);
   });
 }
 
@@ -215,8 +249,11 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  if (unlistenFn) {
-    unlistenFn();
+  if (unlistenOutputFn) {
+    unlistenOutputFn();
+  }
+  if (unlistenExitFn) {
+    unlistenExitFn();
   }
   if (resizeObserver) {
     resizeObserver.disconnect();
