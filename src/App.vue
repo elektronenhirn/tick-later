@@ -165,8 +165,25 @@ async function createNewDatabase() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  // ESC to close dialogs
+  if (event.key === 'Escape') {
+    if (showTodoForm.value) {
+      event.preventDefault();
+      closeTodoForm();
+      return;
+    }
+    if (editingTodo.value) {
+      event.preventDefault();
+      closeEditForm();
+      return;
+    }
+  }
+
   if (event.ctrlKey || event.metaKey) {
-    if (event.key === 'n' || event.key === 'N') {
+    if (event.shiftKey && (event.key === 'n' || event.key === 'N')) {
+      event.preventDefault();
+      openTodoForm();
+    } else if (event.key === 'n' || event.key === 'N') {
       event.preventDefault();
       createNewDatabase();
     } else if (event.key === 'o' || event.key === 'O') {
@@ -251,7 +268,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Floating Compose Button -->
-    <button @click="openTodoForm" class="compose-btn" title="New entry">
+    <button @click="openTodoForm" class="compose-btn" title="New entry (Ctrl+Shift+N)">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 5v14M5 12h14"/>
       </svg>
