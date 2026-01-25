@@ -1,5 +1,7 @@
 # Tick Later
 
+![Screenshot of Tick Later application](screenshot-with-shadow.png)
+
 A minimal, notebook-style desktop app for managing tasks with time-based scheduling.
 
 Built with Tauri, Vue 3, and TypeScript.
@@ -14,10 +16,6 @@ Built with Tauri, Vue 3, and TypeScript.
 - **Clickable URLs** - Links in task titles and notes open in your default browser
 - **Notebook aesthetic** - Clean, paper-like design with a focus on readability
 - **Local storage** - All data stored locally on your machine
-
-## Screenshots
-
-![Screenshot of Tick Later application](screenshot-from-demo.json.png)
 
 ## Installation
 
