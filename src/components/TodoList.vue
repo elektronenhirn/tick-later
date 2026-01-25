@@ -22,6 +22,7 @@ onUnmounted(() => {
 const props = defineProps<{
   todos: Todo[];
   databasePath?: string;
+  appVersion?: string;
 }>();
 
 const emit = defineEmits<{
@@ -388,10 +389,27 @@ function handleSwitchDesktop(desktop: number) {
       </div>
     </section>
 
-    <!-- Database Info -->
-    <footer class="database-info" v-if="databasePath">
-      <span class="db-label">Database:</span>
-      <span class="db-path">{{ databasePath }}</span>
+    <!-- Footer Info -->
+    <footer class="app-footer">
+      <div class="footer-row" v-if="databasePath">
+        <span class="footer-label">Database:</span>
+        <span class="footer-value">{{ databasePath }}</span>
+      </div>
+      <div class="footer-row">
+        <span class="footer-label">Version:</span>
+        <span class="footer-value">{{ appVersion || '...' }}</span>
+        <span class="footer-separator">|</span>
+        <span class="footer-made-with">Made with ❤️ in Schrobenhausen</span>
+        <span class="footer-separator">|</span>
+        <a href="https://github.com/elektronenhirn/tick-later" target="_blank" class="footer-link">
+          GitHub
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
+      </div>
     </footer>
   </div>
 </template>
@@ -653,27 +671,59 @@ function handleSwitchDesktop(desktop: number) {
   }
 }
 
-/* Database Info Footer */
-.database-info {
+/* App Footer */
+.app-footer {
   margin-top: 48px;
   padding-top: 24px;
   border-top: 1px solid var(--rule-line);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--ink-light);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footer-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.db-label {
+.footer-label {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.7;
 }
 
-.db-path {
+.footer-value {
   color: var(--ink);
   word-break: break-all;
+}
+
+.footer-separator {
+  opacity: 0.4;
+  margin: 0 4px;
+}
+
+.footer-made-with {
+  color: var(--ink-light);
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-light);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--accent);
+}
+
+.footer-link svg {
+  opacity: 0.7;
 }
 </style>

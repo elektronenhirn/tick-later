@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { getVersion } from "@tauri-apps/api/app";
 import type { Todo } from "./types/todo";
 import TodoList from "./components/TodoList.vue";
 import TodoForm from "./components/TodoForm.vue";
@@ -204,10 +205,13 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
+const appVersion = ref("");
+
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown);
   await loadTodos();
   currentDbPath.value = await invoke<string>("get_current_database_path");
+  appVersion.value = await getVersion();
 });
 
 onUnmounted(() => {
@@ -269,6 +273,7 @@ onUnmounted(() => {
       <TodoList
         :todos="todos"
         :database-path="currentDbPath"
+        :app-version="appVersion"
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"

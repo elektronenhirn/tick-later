@@ -7,6 +7,8 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "core:event:default"
+    "core:event:default",
+    "core:window:allow-set-title",
+    "core:app:allow-version"
   ]
 }
