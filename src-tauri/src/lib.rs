@@ -9,6 +9,9 @@ use tauri::{AppHandle, Manager, State};
 mod terminal;
 use terminal::{TerminalManager, TerminalState};
 
+#[cfg(target_os = "linux")]
+mod virtual_desktop;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Todo {
     pub id: String,
@@ -17,10 +20,12 @@ pub struct Todo {
     pub revisit_at: DateTime<Utc>,
     pub completed: bool,
     pub created_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub virtual_desktop: Option<u32>,
 }
 
 impl Todo {
-    pub fn new(title: String, description: Option<String>, revisit_at: DateTime<Utc>) -> Self {
+    pub fn new(title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             title,
@@ -28,6 +33,7 @@ impl Todo {
             revisit_at,
             completed: false,
             created_at: Utc::now(),
+            virtual_desktop,
         }
     }
 }
@@ -89,9 +95,9 @@ fn load_todos(app_handle: AppHandle, db_path: State<DatabasePath>) -> Result<Vec
 }
 
 #[tauri::command]
-fn save_todo(app_handle: AppHandle, db_path: State<DatabasePath>, title: String, description: Option<String>, revisit_at: DateTime<Utc>) -> Result<Todo, String> {
+fn save_todo(app_handle: AppHandle, db_path: State<DatabasePath>, title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>) -> Result<Todo, String> {
     let mut todos = load_todos_from_file(&app_handle, &db_path)?;
-    let new_todo = Todo::new(title, description, revisit_at);
+    let new_todo = Todo::new(title, description, revisit_at, virtual_desktop);
 
     todos.push(new_todo.clone());
     save_todos_to_file(&app_handle, &db_path, &todos)?;
@@ -123,6 +129,8 @@ fn update_todo(
     description: Option<String>,
     revisit_at: Option<DateTime<Utc>>,
     clear_description: Option<bool>,
+    virtual_desktop: Option<u32>,
+    clear_virtual_desktop: Option<bool>,
 ) -> Result<Todo, String> {
     let mut todos = load_todos_from_file(&app_handle, &db_path)?;
 
@@ -142,6 +150,12 @@ fn update_todo(
 
     if let Some(new_revisit_at) = revisit_at {
         todo.revisit_at = new_revisit_at;
+    }
+
+    if clear_virtual_desktop.unwrap_or(false) {
+        todo.virtual_desktop = None;
+    } else if virtual_desktop.is_some() {
+        todo.virtual_desktop = virtual_desktop;
     }
 
     let updated_todo = todo.clone();
@@ -265,6 +279,31 @@ fn has_terminal_session(
     Ok(manager.has_session(&todo_id))
 }
 
+// Virtual desktop commands (Linux only)
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn get_virtual_desktop_info() -> Result<virtual_desktop::DesktopInfo, String> {
+    virtual_desktop::get_desktop_info()
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn switch_virtual_desktop(desktop: u32) -> Result<(), String> {
+    virtual_desktop::switch_to_desktop(desktop)
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn switch_to_next_virtual_desktop() -> Result<u32, String> {
+    virtual_desktop::switch_to_next_desktop()
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn switch_to_previous_virtual_desktop() -> Result<u32, String> {
+    virtual_desktop::switch_to_previous_desktop()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -285,7 +324,15 @@ pub fn run() {
             write_to_terminal,
             resize_terminal,
             close_terminal_session,
-            has_terminal_session
+            has_terminal_session,
+            #[cfg(target_os = "linux")]
+            get_virtual_desktop_info,
+            #[cfg(target_os = "linux")]
+            switch_virtual_desktop,
+            #[cfg(target_os = "linux")]
+            switch_to_next_virtual_desktop,
+            #[cfg(target_os = "linux")]
+            switch_to_previous_virtual_desktop
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

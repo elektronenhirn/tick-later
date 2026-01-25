@@ -28,3 +28,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 portable-pty = "0.8"
 tokio = { version = "1", features = ["sync"] }
 
+# Linux virtual desktop support (X11 EWMH)
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", features = ["allow-unsafe-code"] }
+

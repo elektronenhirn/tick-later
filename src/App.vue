@@ -30,12 +30,13 @@ async function loadTodos() {
   }
 }
 
-async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string }) {
+async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string; virtualDesktop?: number }) {
   try {
     const newTodo = await invoke<Todo>("save_todo", {
       title: todoData.title,
       description: todoData.description,
-      revisitAt: new Date(todoData.revisitAt).toISOString()
+      revisitAt: new Date(todoData.revisitAt).toISOString(),
+      virtualDesktop: todoData.virtualDesktop
     });
     todos.value.push(newTodo);
     showTodoForm.value = false;
@@ -71,14 +72,16 @@ async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
   }
 }
 
-async function handleEditTodo(todoData: { id: string; title: string; description?: string; revisitAt: string }) {
+async function handleEditTodo(todoData: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean }) {
   try {
     const updatedTodo = await invoke<Todo>("update_todo", {
       id: todoData.id,
       title: todoData.title,
       description: todoData.description,
       revisitAt: new Date(todoData.revisitAt).toISOString(),
-      clearDescription: !todoData.description
+      clearDescription: !todoData.description,
+      virtualDesktop: todoData.virtualDesktop,
+      clearVirtualDesktop: todoData.clearVirtualDesktop
     });
     const index = todos.value.findIndex(t => t.id === todoData.id);
     if (index !== -1) {
@@ -122,6 +125,14 @@ function handleOpenTerminal(todo: Todo) {
 
 function handleCloseTerminal() {
   terminalVisible.value = false;
+}
+
+async function handleSwitchDesktop(desktop: number) {
+  try {
+    await invoke("switch_virtual_desktop", { desktop });
+  } catch (e) {
+    error.value = `Failed to switch desktop: ${e}`;
+  }
 }
 
 async function openDatabase() {
@@ -264,6 +275,7 @@ onUnmounted(() => {
         @update-todo="handleUpdateTodo"
         @edit-todo="openEditForm"
         @open-terminal="handleOpenTerminal"
+        @switch-desktop="handleSwitchDesktop"
       />
     </div>
 

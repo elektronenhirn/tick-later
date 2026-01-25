@@ -1,19 +1,44 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
-import type { Todo } from "../types/todo";
+import { ref, watch, computed, onMounted } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import type { Todo, DesktopInfo } from "../types/todo";
 
 const props = defineProps<{
   editingTodo?: Todo;
 }>();
 
 const emit = defineEmits<{
-  addTodo: [todo: { title: string; description?: string; revisitAt: string }];
-  updateTodo: [todo: { id: string; title: string; description?: string; revisitAt: string }];
+  addTodo: [todo: { title: string; description?: string; revisitAt: string; virtualDesktop?: number }];
+  updateTodo: [todo: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean }];
 }>();
 
 const title = ref("");
 const description = ref("");
 const revisitAt = ref("");
+const virtualDesktop = ref<number | null>(null);
+const desktopInfo = ref<DesktopInfo | null>(null);
+const desktopSupported = ref(false);
+
+async function loadDesktopInfo() {
+  try {
+    desktopInfo.value = await invoke<DesktopInfo>("get_virtual_desktop_info");
+    desktopSupported.value = true;
+  } catch {
+    // Virtual desktop not supported on this platform
+    desktopSupported.value = false;
+  }
+}
+
+onMounted(() => {
+  loadDesktopInfo();
+});
+
+function getDesktopName(index: number): string {
+  if (desktopInfo.value?.names[index]) {
+    return desktopInfo.value.names[index];
+  }
+  return `Desktop ${index + 1}`;
+}
 
 const isEditMode = computed(() => !!props.editingTodo);
 
@@ -22,6 +47,7 @@ watch(() => props.editingTodo, (todo) => {
   if (todo) {
     title.value = todo.title;
     description.value = todo.description || "";
+    virtualDesktop.value = todo.virtual_desktop ?? null;
     // Format the date for datetime-local input
     const date = new Date(todo.revisit_at);
     const year = date.getFullYear();
@@ -39,23 +65,29 @@ function resetForm() {
   title.value = "";
   description.value = "";
   revisitAt.value = "";
+  virtualDesktop.value = null;
 }
 
 function handleSubmit() {
   if (!title.value.trim() || !revisitAt.value) return;
 
   if (isEditMode.value && props.editingTodo) {
+    const hadDesktop = props.editingTodo.virtual_desktop !== undefined;
+    const hasDesktop = virtualDesktop.value !== null;
     emit("updateTodo", {
       id: props.editingTodo.id,
       title: title.value.trim(),
       description: description.value.trim() || undefined,
-      revisitAt: revisitAt.value
+      revisitAt: revisitAt.value,
+      virtualDesktop: virtualDesktop.value ?? undefined,
+      clearVirtualDesktop: hadDesktop && !hasDesktop
     });
   } else {
     emit("addTodo", {
       title: title.value.trim(),
       description: description.value.trim() || undefined,
-      revisitAt: revisitAt.value
+      revisitAt: revisitAt.value,
+      virtualDesktop: virtualDesktop.value ?? undefined
     });
   }
 
@@ -170,6 +202,38 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
           required
           class="field-input field-input--datetime"
         />
+      </div>
+
+      <div v-if="desktopSupported && desktopInfo" class="form-field">
+        <label for="virtual-desktop" class="field-label">
+          <span class="label-text">Virtual Desktop</span>
+          <span class="label-optional">optional</span>
+        </label>
+
+        <div class="desktop-selector">
+          <button
+            type="button"
+            class="desktop-btn"
+            :class="{ 'desktop-btn--active': virtualDesktop === null }"
+            @click="virtualDesktop = null"
+          >
+            None
+          </button>
+          <button
+            v-for="i in desktopInfo.total"
+            :key="i - 1"
+            type="button"
+            class="desktop-btn"
+            :class="{
+              'desktop-btn--active': virtualDesktop === i - 1,
+              'desktop-btn--current': desktopInfo.current === i - 1
+            }"
+            @click="virtualDesktop = i - 1"
+          >
+            {{ getDesktopName(i - 1) }}
+            <span v-if="desktopInfo.current === i - 1" class="current-indicator" title="Current desktop"></span>
+          </button>
+        </div>
       </div>
 
       <div class="form-actions">
@@ -306,6 +370,62 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
   color: var(--ink);
   border-color: var(--ink);
   background: var(--paper-alt);
+}
+
+.desktop-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.desktop-btn {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-light);
+  background: transparent;
+  border: 2px solid var(--rule-line);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.desktop-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--paper-alt);
+}
+
+.desktop-btn--active {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.desktop-btn--active:hover {
+  color: var(--paper);
+  background: var(--ink-light);
+}
+
+.desktop-btn--current::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.desktop-btn--active.desktop-btn--current::after {
+  background: var(--paper);
+}
+
+.current-indicator {
+  display: none;
 }
 
 .form-actions {

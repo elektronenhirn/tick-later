@@ -31,6 +31,7 @@ const emit = defineEmits<{
   updateTodo: [todoData: { id: string; revisitAt: string }];
   editTodo: [todo: Todo];
   openTerminal: [todo: Todo];
+  switchDesktop: [desktop: number];
 }>();
 
 const sortedTodos = computed(() => {
@@ -192,6 +193,10 @@ function handleMoveTodo(todoId: string, section: string) {
 function handleOpenTerminal(todo: Todo) {
   emit("openTerminal", todo);
 }
+
+function handleSwitchDesktop(desktop: number) {
+  emit("switchDesktop", desktop);
+}
 </script>
 
 <template>
@@ -219,6 +224,7 @@ function handleOpenTerminal(todo: Todo) {
             @edit-todo="handleEditTodo"
             @move-todo="handleMoveTodo"
             @open-terminal="handleOpenTerminal"
+            @switch-desktop="handleSwitchDesktop"
           />
         </TransitionGroup>
       </div>
@@ -253,6 +259,7 @@ function handleOpenTerminal(todo: Todo) {
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @switch-desktop="handleSwitchDesktop"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -283,6 +290,7 @@ function handleOpenTerminal(todo: Todo) {
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @switch-desktop="handleSwitchDesktop"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -313,6 +321,7 @@ function handleOpenTerminal(todo: Todo) {
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @switch-desktop="handleSwitchDesktop"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -343,6 +352,7 @@ function handleOpenTerminal(todo: Todo) {
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @switch-desktop="handleSwitchDesktop"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -372,6 +382,7 @@ function handleOpenTerminal(todo: Todo) {
             @edit-todo="handleEditTodo"
             @move-todo="handleMoveTodo"
             @open-terminal="handleOpenTerminal"
+            @switch-desktop="handleSwitchDesktop"
           />
         </TransitionGroup>
       </div>
