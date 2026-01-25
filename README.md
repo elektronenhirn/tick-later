@@ -9,6 +9,8 @@ Built with Tauri, Vue 3, and TypeScript.
 - **Time-based organization** - Tasks are automatically sorted into time slots: Next 2 Hours, 2-4 Hours, Tomorrow, and Next Week
 - **Drag and drop** - Reschedule tasks by dragging them between time slots
 - **Quick scheduling** - Preset buttons for common scheduling patterns
+- **Integrated terminal** - Open a terminal session for any task to run commands in context
+- **Virtual desktop pinning** - Associate tasks with virtual desktops and switch to them with one click (Linux only)
 - **Clickable URLs** - Links in task titles and notes open in your default browser
 - **Notebook aesthetic** - Clean, paper-like design with a focus on readability
 - **Local storage** - All data stored locally on your machine
