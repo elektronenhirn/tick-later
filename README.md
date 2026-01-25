@@ -17,7 +17,7 @@ Built with Tauri, Vue 3, and TypeScript.
 
 ## Screenshots
 
-<!-- Add screenshots here -->
+![Screenshot of Tick Later application](screenshot-from-demo.json.png)
 
 ## Installation
 
