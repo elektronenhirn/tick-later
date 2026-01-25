@@ -17,6 +17,35 @@ Built with Tauri, Vue 3, and TypeScript.
 
 <!-- Add screenshots here -->
 
+## Installation
+
+Download the latest release for your platform from the [Releases page](https://github.com/elektronenhirn/tick-later/releases).
+
+| Platform | File |
+|----------|------|
+| Windows | `.msi` or `.exe` |
+| macOS (Apple Silicon) | `.dmg` (aarch64) |
+| macOS (Intel) | `.dmg` (x86_64) |
+| Linux | `.deb` or `.AppImage` |
+
+### macOS: "App is damaged" warning
+
+macOS may show a warning that "tick-later is damaged and can't be opened" when you try to run the app. This happens because the app is not signed with an Apple Developer certificate.
+
+**To fix this**, open Terminal and run:
+
+```bash
+xattr -cr /Applications/tick-later.app
+```
+
+Or if you haven't moved it to Applications yet:
+
+```bash
+xattr -cr ~/Downloads/tick-later.app
+```
+
+This removes the quarantine flag that macOS adds to downloaded files.
+
 ## Development
 
 ### Prerequisites
