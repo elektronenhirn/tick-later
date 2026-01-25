@@ -1,0 +1,101 @@
+[
+  {
+    "id": "demo-001",
+    "title": "Review pull request from Sarah",
+    "description": "Check the authentication refactor before standup",
+    "revisit_at": "2025-01-25T10:30:00Z",
+    "completed": false,
+    "created_at": "2025-01-24T14:00:00Z",
+    "virtual_desktop": 1
+  },
+  {
+    "id": "demo-002",
+    "title": "Call dentist to reschedule appointment",
+    "description": null,
+    "revisit_at": "2026-01-25T16:49:40.210Z",
+    "completed": false,
+    "created_at": "2025-01-23T09:00:00Z"
+  },
+  {
+    "id": "demo-003",
+    "title": "Finish expense report",
+    "description": "Q4 travel reimbursements",
+    "revisit_at": "2026-01-26T06:00:00Z",
+    "completed": false,
+    "created_at": "2025-01-20T11:00:00Z"
+  },
+  {
+    "id": "demo-004",
+    "title": "Reply to Mom's email",
+    "description": null,
+    "revisit_at": "2026-01-25T16:49:50.792Z",
+    "completed": false,
+    "created_at": "2025-01-24T19:00:00Z"
+  },
+  {
+    "id": "demo-005",
+    "title": "Prepare slides for Friday presentation",
+    "description": "Team quarterly review - focus on metrics and roadmap",
+    "revisit_at": "2026-01-26T06:00:00Z",
+    "completed": false,
+    "created_at": "2025-01-22T10:00:00Z",
+    "virtual_desktop": 0
+  },
+  {
+    "id": "demo-006",
+    "title": "Book flights for conference",
+    "description": "Check Southwest and United for best prices to Austin",
+    "revisit_at": "2026-01-26T06:00:00Z",
+    "completed": false,
+    "created_at": "2025-01-21T16:00:00Z"
+  },
+  {
+    "id": "demo-007",
+    "title": "Research new laptop options",
+    "description": null,
+    "revisit_at": "2026-01-26T06:00:00Z",
+    "completed": false,
+    "created_at": "2025-01-24T20:00:00Z"
+  },
+  {
+    "id": "demo-008",
+    "title": "Start learning Rust",
+    "description": "Work through The Rust Book chapters 1-4",
+    "revisit_at": "2026-01-26T06:00:00Z",
+    "completed": false,
+    "created_at": "2025-01-15T14:00:00Z",
+    "virtual_desktop": 2
+  },
+  {
+    "id": "demo-009",
+    "title": "Plan birthday dinner for Alex",
+    "description": "Reserve table at Italian place, invite the usual crew",
+    "revisit_at": "2026-01-25T18:50:06.289Z",
+    "completed": false,
+    "created_at": "2025-01-20T21:00:00Z"
+  },
+  {
+    "id": "demo-010",
+    "title": "Renew car registration",
+    "description": null,
+    "revisit_at": "2026-01-26T06:00:00Z",
+    "completed": false,
+    "created_at": "2025-01-18T09:00:00Z"
+  },
+  {
+    "id": "demo-011",
+    "title": "Submit timesheet",
+    "description": null,
+    "revisit_at": "2025-01-24T17:00:00Z",
+    "completed": true,
+    "created_at": "2025-01-24T09:00:00Z"
+  },
+  {
+    "id": "demo-012",
+    "title": "Order new headphones",
+    "description": "Sony WH-1000XM5 from Amazon",
+    "revisit_at": "2025-01-23T12:00:00Z",
+    "completed": true,
+    "created_at": "2025-01-22T20:00:00Z"
+  }
+]
