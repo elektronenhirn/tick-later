@@ -5,6 +5,7 @@ import LinkifiedText from "./LinkifiedText.vue";
 
 const props = defineProps<{
   todo: Todo;
+  isHighlighted?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -177,8 +178,10 @@ function handleSwitchDesktop() {
     class="todo-item"
     :class="{
       'todo-item--completed': todo.completed,
-      'todo-item--overdue': isOverdue
+      'todo-item--overdue': isOverdue,
+      'todo-item--highlighted': isHighlighted
     }"
+    :data-todo-id="todo.id"
     draggable="true"
     @dragstart="handleDragStart"
     @dblclick="handleEdit"
@@ -352,6 +355,33 @@ function handleSwitchDesktop() {
 .todo-item--completed .sidepanel {
   opacity: 0.5;
   filter: saturate(0.6);
+}
+
+/* Highlighted state (from search) */
+.todo-item--highlighted {
+  animation: highlight-pulse 2s ease-out;
+  box-shadow: 0 0 0 4px var(--accent) !important;
+  border-color: var(--accent) !important;
+  background: var(--accent-light);
+  background: color-mix(in srgb, var(--accent) 10%, var(--paper));
+}
+
+@keyframes highlight-pulse {
+  0%, 25% {
+    box-shadow: 0 0 0 8px var(--accent);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--accent);
+    transform: scale(1);
+  }
+  75% {
+    box-shadow: 0 0 0 6px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 4px var(--accent);
+    transform: scale(1);
+  }
 }
 
 .item-body {

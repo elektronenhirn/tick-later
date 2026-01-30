@@ -19,6 +19,12 @@ const currentDbPath = ref<string>("");
 const terminalVisible = ref(false);
 const activeTerminalTodo = ref<Todo | null>(null);
 
+// Search state
+const showSearch = ref(false);
+const searchQuery = ref("");
+const highlightedTodoId = ref<string | null>(null);
+const searchInputRef = ref<HTMLInputElement | null>(null);
+
 async function loadTodos() {
   try {
     loading.value = true;
@@ -139,6 +145,55 @@ async function handleSwitchDesktop(desktop: number) {
   }
 }
 
+// Search functions
+function openSearch() {
+  showSearch.value = true;
+  searchQuery.value = "";
+  highlightedTodoId.value = null;
+  // Focus input after dialog opens
+  setTimeout(() => {
+    searchInputRef.value?.focus();
+  }, 50);
+}
+
+function closeSearch() {
+  showSearch.value = false;
+  searchQuery.value = "";
+}
+
+function performSearch() {
+  if (!searchQuery.value.trim()) {
+    highlightedTodoId.value = null;
+    return;
+  }
+
+  const query = searchQuery.value.toLowerCase();
+  const found = todos.value.find(todo =>
+    todo.title.toLowerCase().includes(query) ||
+    (todo.description && todo.description.toLowerCase().includes(query))
+  );
+
+  if (found) {
+    highlightedTodoId.value = found.id;
+    showSearch.value = false;
+
+    // Scroll to the found todo after a short delay to let the modal close
+    setTimeout(() => {
+      const element = document.querySelector(`[data-todo-id="${found.id}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      highlightedTodoId.value = null;
+    }, 3000);
+  } else {
+    highlightedTodoId.value = null;
+  }
+}
+
 async function openDatabase() {
   try {
     const selected = await open({
@@ -182,6 +237,11 @@ async function createNewDatabase() {
 function handleKeydown(event: KeyboardEvent) {
   // ESC to close dialogs
   if (event.key === 'Escape') {
+    if (showSearch.value) {
+      event.preventDefault();
+      closeSearch();
+      return;
+    }
     if (showTodoForm.value) {
       event.preventDefault();
       closeTodoForm();
@@ -195,7 +255,10 @@ function handleKeydown(event: KeyboardEvent) {
   }
 
   if (event.ctrlKey || event.metaKey) {
-    if (event.shiftKey && (event.key === 'n' || event.key === 'N')) {
+    if (event.key === 'f' || event.key === 'F') {
+      event.preventDefault();
+      openSearch();
+    } else if (event.shiftKey && (event.key === 'n' || event.key === 'N')) {
       event.preventDefault();
       openTodoForm();
     } else if (event.key === 'n' || event.key === 'N') {
@@ -239,6 +302,12 @@ onUnmounted(() => {
         </div>
         <div class="header-actions">
           <div class="header-buttons">
+            <button @click="openSearch" class="header-btn" title="Search (Ctrl+F)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+            </button>
             <button @click="createNewDatabase" class="header-btn" title="New Database (Ctrl+N)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -277,6 +346,7 @@ onUnmounted(() => {
         :todos="todos"
         :database-path="currentDbPath"
         :app-version="appVersion"
+        :highlighted-todo-id="highlightedTodoId"
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"
@@ -324,6 +394,41 @@ onUnmounted(() => {
             </button>
           </div>
           <TodoForm :editing-todo="editingTodo" @update-todo="handleEditTodo" />
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Search Modal -->
+    <Transition name="modal">
+      <div v-if="showSearch" class="modal-overlay" @mousedown.self="closeSearch">
+        <div class="modal-content modal-content--search">
+          <div class="modal-header">
+            <h2>Search Todos</h2>
+            <button @click="closeSearch" class="close-btn" title="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <form class="search-form" @submit.prevent="performSearch">
+            <div class="search-input-wrapper">
+              <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                ref="searchInputRef"
+                v-model="searchQuery"
+                type="text"
+                class="search-input"
+                placeholder="Search by title or description..."
+                @keydown.enter="performSearch"
+              />
+            </div>
+            <button type="submit" class="search-submit">
+              Find
+            </button>
+          </form>
         </div>
       </div>
     </Transition>
@@ -671,6 +776,69 @@ onUnmounted(() => {
 .close-btn:hover {
   color: var(--ink);
   border-color: var(--ink);
+}
+
+/* Search Modal */
+.modal-content--search {
+  max-width: 480px;
+}
+
+.search-form {
+  padding: 20px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--ink-light);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px 14px 14px 48px;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper-alt);
+  border: 2px solid var(--rule-line);
+  transition: all 0.15s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--ink);
+  background: var(--paper);
+}
+
+.search-input::placeholder {
+  color: var(--ink-light);
+  opacity: 0.7;
+}
+
+.search-submit {
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--paper);
+  background: var(--ink);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.search-submit:hover {
+  background: var(--ink-light);
 }
 
 /* Modal Transitions */

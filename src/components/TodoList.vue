@@ -23,6 +23,7 @@ const props = defineProps<{
   todos: Todo[];
   databasePath?: string;
   appVersion?: string;
+  highlightedTodoId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -220,6 +221,7 @@ function handleSwitchDesktop(desktop: number) {
             v-for="todo in overdueTodos"
             :key="todo.id"
             :todo="todo"
+            :is-highlighted="props.highlightedTodoId === todo.id"
             @toggle-complete="handleToggleComplete"
             @delete-todo="handleDeleteTodo"
             @edit-todo="handleEditTodo"
@@ -256,6 +258,7 @@ function handleSwitchDesktop(desktop: number) {
                 v-for="todo in categorizedPendingTodos.next2Hours"
                 :key="todo.id"
                 :todo="todo"
+                :is-highlighted="props.highlightedTodoId === todo.id"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
@@ -287,6 +290,7 @@ function handleSwitchDesktop(desktop: number) {
                 v-for="todo in categorizedPendingTodos.next2To4Hours"
                 :key="todo.id"
                 :todo="todo"
+                :is-highlighted="props.highlightedTodoId === todo.id"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
@@ -318,6 +322,7 @@ function handleSwitchDesktop(desktop: number) {
                 v-for="todo in categorizedPendingTodos.tomorrow"
                 :key="todo.id"
                 :todo="todo"
+                :is-highlighted="props.highlightedTodoId === todo.id"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
@@ -349,6 +354,7 @@ function handleSwitchDesktop(desktop: number) {
                 v-for="todo in categorizedPendingTodos.nextWeek"
                 :key="todo.id"
                 :todo="todo"
+                :is-highlighted="props.highlightedTodoId === todo.id"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
@@ -378,6 +384,7 @@ function handleSwitchDesktop(desktop: number) {
             v-for="todo in completedTodos"
             :key="todo.id"
             :todo="todo"
+            :is-highlighted="props.highlightedTodoId === todo.id"
             @toggle-complete="handleToggleComplete"
             @delete-todo="handleDeleteTodo"
             @edit-todo="handleEditTodo"
