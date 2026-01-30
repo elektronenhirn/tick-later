@@ -31,13 +31,14 @@ async function loadTodos() {
   }
 }
 
-async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string; virtualDesktop?: number }) {
+async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string; virtualDesktop?: number; color?: string }) {
   try {
     const newTodo = await invoke<Todo>("save_todo", {
       title: todoData.title,
       description: todoData.description,
       revisitAt: new Date(todoData.revisitAt).toISOString(),
-      virtualDesktop: todoData.virtualDesktop
+      virtualDesktop: todoData.virtualDesktop,
+      color: todoData.color
     });
     todos.value.push(newTodo);
     showTodoForm.value = false;
@@ -73,7 +74,7 @@ async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
   }
 }
 
-async function handleEditTodo(todoData: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean }) {
+async function handleEditTodo(todoData: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean; color?: string; clearColor?: boolean }) {
   try {
     const updatedTodo = await invoke<Todo>("update_todo", {
       id: todoData.id,
@@ -82,7 +83,9 @@ async function handleEditTodo(todoData: { id: string; title: string; description
       revisitAt: new Date(todoData.revisitAt).toISOString(),
       clearDescription: !todoData.description,
       virtualDesktop: todoData.virtualDesktop,
-      clearVirtualDesktop: todoData.clearVirtualDesktop
+      clearVirtualDesktop: todoData.clearVirtualDesktop,
+      color: todoData.color,
+      clearColor: todoData.clearColor
     });
     const index = todos.value.findIndex(t => t.id === todoData.id);
     if (index !== -1) {

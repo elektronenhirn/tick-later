@@ -8,8 +8,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  addTodo: [todo: { title: string; description?: string; revisitAt: string; virtualDesktop?: number }];
-  updateTodo: [todo: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean }];
+  addTodo: [todo: { title: string; description?: string; revisitAt: string; virtualDesktop?: number; color?: string }];
+  updateTodo: [todo: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean; color?: string; clearColor?: boolean }];
 }>();
 
 const title = ref("");
@@ -18,6 +18,44 @@ const revisitAt = ref("");
 const virtualDesktop = ref<number | null>(null);
 const desktopInfo = ref<DesktopInfo | null>(null);
 const desktopSupported = ref(false);
+const selectedColor = ref<string | null>(null);
+const showColorPicker = ref(false);
+
+// Premium colored pencil palette
+const colorPalette = [
+  // Scarlets & Crimsons
+  '#c23b22', '#a63d40', '#8b2942', '#6b1d2b',
+  // Rose & Blush
+  '#c9556d', '#b5485d', '#9e3a52', '#8a2846',
+  // Magenta & Berry
+  '#a64d79', '#8e3f6b', '#763458', '#5e2a48',
+  // Violet & Plum
+  '#7c5295', '#6b4483', '#583874', '#472d62',
+  // Royal & Iris
+  '#5c5da8', '#4e509a', '#424589', '#363a78',
+  // Ultramarine & Cobalt
+  '#3d5a99', '#345089', '#2c4679', '#243b68',
+  // Cerulean & Azure
+  '#4a7fb5', '#3d71a5', '#326395', '#285685',
+  // Teal & Ocean
+  '#3d8b8b', '#347b7b', '#2b6b6b', '#225b5b',
+  // Viridian & Emerald
+  '#3d8b6b', '#347b5d', '#2b6b50', '#225b43',
+  // Forest & Hunter
+  '#4a7a4a', '#3d6b3d', '#325c32', '#284d28',
+  // Olive & Moss
+  '#6b7a3d', '#5d6b34', '#505c2b', '#434d22',
+  // Ochre & Sienna
+  '#b5854a', '#a57540', '#956536', '#85552d',
+  // Amber & Bronze
+  '#c98b3d', '#b97d34', '#a96f2b', '#996122',
+  // Tangerine & Rust
+  '#c97a4a', '#b96a3d', '#a95a32', '#994a28',
+  // Coral & Terracotta
+  '#c96a5a', '#b95a4d', '#a94a40', '#993a34',
+  // Warm Grays & Sepia
+  '#7a6b5d', '#6b5d50', '#5c5043', '#4d4336',
+];
 
 async function loadDesktopInfo() {
   try {
@@ -48,6 +86,7 @@ watch(() => props.editingTodo, (todo) => {
     title.value = todo.title;
     description.value = todo.description || "";
     virtualDesktop.value = todo.virtual_desktop ?? null;
+    selectedColor.value = todo.color ?? null;
     // Format the date for datetime-local input
     const date = new Date(todo.revisit_at);
     const year = date.getFullYear();
@@ -66,6 +105,8 @@ function resetForm() {
   description.value = "";
   revisitAt.value = "";
   virtualDesktop.value = null;
+  selectedColor.value = null;
+  showColorPicker.value = false;
 }
 
 function handleSubmit() {
@@ -74,20 +115,25 @@ function handleSubmit() {
   if (isEditMode.value && props.editingTodo) {
     const hadDesktop = props.editingTodo.virtual_desktop !== undefined;
     const hasDesktop = virtualDesktop.value !== null;
+    const hadColor = props.editingTodo.color !== undefined;
+    const hasColor = selectedColor.value !== null;
     emit("updateTodo", {
       id: props.editingTodo.id,
       title: title.value.trim(),
       description: description.value.trim() || undefined,
       revisitAt: revisitAt.value,
       virtualDesktop: virtualDesktop.value ?? undefined,
-      clearVirtualDesktop: hadDesktop && !hasDesktop
+      clearVirtualDesktop: hadDesktop && !hasDesktop,
+      color: selectedColor.value ?? undefined,
+      clearColor: hadColor && !hasColor
     });
   } else {
     emit("addTodo", {
       title: title.value.trim(),
       description: description.value.trim() || undefined,
       revisitAt: revisitAt.value,
-      virtualDesktop: virtualDesktop.value ?? undefined
+      virtualDesktop: virtualDesktop.value ?? undefined,
+      color: selectedColor.value ?? undefined
     });
   }
 
@@ -172,6 +218,55 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
           rows="3"
           class="field-textarea"
         ></textarea>
+      </div>
+
+      <div class="form-field">
+        <label class="field-label">
+          <span class="label-text">Color</span>
+          <span class="label-optional">optional</span>
+        </label>
+        <div class="color-selector">
+          <button
+            type="button"
+            class="color-preview"
+            @click="showColorPicker = !showColorPicker"
+          >
+            <span
+              class="color-swatch"
+              :style="selectedColor ? { background: selectedColor } : {}"
+              :class="{ 'color-swatch--empty': !selectedColor }"
+            >
+              <span v-if="!selectedColor" class="swatch-icon">?</span>
+            </span>
+            <span class="color-label">{{ selectedColor ? 'Custom color' : 'Random (auto)' }}</span>
+            <svg class="chevron" :class="{ 'chevron--open': showColorPicker }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <Transition name="picker">
+            <div v-if="showColorPicker" class="color-picker">
+              <button
+                type="button"
+                class="color-option color-option--random"
+                :class="{ 'color-option--selected': selectedColor === null }"
+                @click="selectedColor = null; showColorPicker = false"
+                title="Random"
+              >
+                <span class="random-icon">?</span>
+              </button>
+              <button
+                v-for="color in colorPalette"
+                :key="color"
+                type="button"
+                class="color-option"
+                :class="{ 'color-option--selected': selectedColor === color }"
+                :style="{ background: color }"
+                :title="color"
+                @click="selectedColor = color; showColorPicker = false"
+              />
+            </div>
+          </Transition>
+        </div>
       </div>
 
       <div class="form-field">
@@ -480,6 +575,132 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
   letter-spacing: 0.02em;
 }
 
+/* Color Selector */
+.color-selector {
+  position: relative;
+}
+
+.color-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 2px solid var(--rule-line);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--ink);
+}
+
+.color-preview:hover {
+  border-color: var(--ink);
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid var(--rule-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-swatch--empty {
+  background: var(--paper-alt);
+  border-style: dashed;
+}
+
+.swatch-icon {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-light);
+}
+
+.color-label {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+  color: var(--ink-light);
+}
+
+.chevron--open {
+  transform: rotate(180deg);
+}
+
+.color-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink-shadow);
+  z-index: 100;
+  margin-top: 4px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 3px;
+}
+
+.color-option {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.color-option:hover {
+  transform: scale(1.2);
+  z-index: 1;
+  border-color: var(--ink);
+}
+
+.color-option--selected {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--paper), 0 0 0 2px var(--ink);
+}
+
+.color-option--random {
+  background: var(--paper-alt);
+  border: 2px dashed var(--rule-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-option--random:hover {
+  border-color: var(--ink);
+}
+
+.random-icon {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--ink-light);
+}
+
+/* Picker Transitions */
+.picker-enter-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.picker-leave-active {
+  transition: opacity 0.1s ease, transform 0.1s ease;
+}
+.picker-enter-from,
+.picker-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
 @media (max-width: 768px) {
   .todo-form {
     padding: 20px 24px 24px;
@@ -492,6 +713,12 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
   .preset-btn {
     font-size: 0.7rem;
     padding: 5px 10px;
+  }
+
+  .color-picker {
+    grid-template-columns: repeat(11, 1fr);
+    gap: 2px;
+    padding: 6px;
   }
 }
 </style>

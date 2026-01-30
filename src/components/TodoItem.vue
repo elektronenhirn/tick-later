@@ -74,6 +74,60 @@ const createdDate = computed(() => {
   });
 });
 
+// Premium colored pencil palette - inspired by artist-grade pencil sets
+// 64 colors organized by hue with rich, sophisticated tones
+const colorPalette = [
+  // Scarlets & Crimsons
+  '#c23b22', '#a63d40', '#8b2942', '#6b1d2b',
+  // Rose & Blush
+  '#c9556d', '#b5485d', '#9e3a52', '#8a2846',
+  // Magenta & Berry
+  '#a64d79', '#8e3f6b', '#763458', '#5e2a48',
+  // Violet & Plum
+  '#7c5295', '#6b4483', '#583874', '#472d62',
+  // Royal & Iris
+  '#5c5da8', '#4e509a', '#424589', '#363a78',
+  // Ultramarine & Cobalt
+  '#3d5a99', '#345089', '#2c4679', '#243b68',
+  // Cerulean & Azure
+  '#4a7fb5', '#3d71a5', '#326395', '#285685',
+  // Teal & Ocean
+  '#3d8b8b', '#347b7b', '#2b6b6b', '#225b5b',
+  // Viridian & Emerald
+  '#3d8b6b', '#347b5d', '#2b6b50', '#225b43',
+  // Forest & Hunter
+  '#4a7a4a', '#3d6b3d', '#325c32', '#284d28',
+  // Olive & Moss
+  '#6b7a3d', '#5d6b34', '#505c2b', '#434d22',
+  // Ochre & Sienna
+  '#b5854a', '#a57540', '#956536', '#85552d',
+  // Amber & Bronze
+  '#c98b3d', '#b97d34', '#a96f2b', '#996122',
+  // Tangerine & Rust
+  '#c97a4a', '#b96a3d', '#a95a32', '#994a28',
+  // Coral & Terracotta
+  '#c96a5a', '#b95a4d', '#a94a40', '#993a34',
+  // Warm Grays & Sepia
+  '#7a6b5d', '#6b5d50', '#5c5043', '#4d4336',
+];
+
+const hatchColor = computed(() => {
+  // Use custom color if set
+  if (props.todo.color) {
+    return props.todo.color;
+  }
+
+  // Otherwise, generate from ID hash
+  let hash = 0;
+  for (let i = 0; i < props.todo.id.length; i++) {
+    const char = props.todo.id.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+
+  return colorPalette[Math.abs(hash) % colorPalette.length];
+});
+
 function handleToggleComplete() {
   emit("toggleComplete", props.todo.id);
 }
@@ -119,6 +173,22 @@ function handleSwitchDesktop() {
     @dblclick="handleEdit"
     @contextmenu="handleContextMenu"
   >
+    <!-- Left sidepanel with diagonal hatching -->
+    <div class="sidepanel" :style="{ '--hatch-color': hatchColor }">
+      <svg class="sidepanel-hatch" viewBox="0 0 28 100" preserveAspectRatio="none">
+        <defs>
+          <pattern :id="`diagonal-hatch-${todo.id}`" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          </pattern>
+          <filter :id="`sketchy-sidepanel-${todo.id}`" x="-20%" y="-5%" width="140%" height="110%">
+            <feTurbulence type="turbulence" baseFrequency="0.08" numOctaves="2" result="noise" seed="7"/>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+        </defs>
+        <rect x="0" y="0" width="28" height="100" :fill="`url(#diagonal-hatch-${todo.id})`" :filter="`url(#sketchy-sidepanel-${todo.id})`"/>
+      </svg>
+    </div>
+
     <div class="item-body">
       <header class="item-header">
         <button
@@ -132,8 +202,15 @@ function handleSwitchDesktop() {
           </svg>
         </button>
 
-        <h3 class="item-title">
+        <h3 class="item-title" :style="{ '--title-color': hatchColor }">
           <LinkifiedText :text="todo.title" />
+          <svg class="title-underline" viewBox="0 0 100 6" preserveAspectRatio="none">
+            <filter id="sketch-underline" x="-10%" y="-50%" width="120%" height="200%">
+              <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="2" result="noise" seed="3"/>
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
+            <line x1="0" y1="3" x2="100" y2="3.5" filter="url(#sketch-underline)" />
+          </svg>
         </h3>
 
         <div class="item-actions">
@@ -235,6 +312,35 @@ function handleSwitchDesktop() {
   cursor: grabbing;
   transform: translate(0, 0);
   box-shadow: 1px 1px 0 var(--ink-shadow);
+}
+
+/* Left sidepanel with diagonal hatching */
+.sidepanel {
+  width: 28px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--hatch-color) 8%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--hatch-color) 20%, var(--rule-line));
+}
+
+.sidepanel-hatch {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--hatch-color);
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.todo-item:hover .sidepanel-hatch {
+  opacity: 0.7;
+}
+
+.todo-item--completed .sidepanel {
+  opacity: 0.5;
+  filter: saturate(0.6);
 }
 
 .item-body {
@@ -378,11 +484,33 @@ function handleSwitchDesktop() {
   margin: 0;
   line-height: 1.4;
   word-wrap: break-word;
+  position: relative;
+  display: inline-block;
+}
+
+.title-underline {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  overflow: visible;
+}
+
+.title-underline line {
+  stroke: var(--title-color);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.6;
 }
 
 .todo-item--completed .item-title {
   text-decoration: line-through;
   color: var(--ink-light);
+}
+
+.todo-item--completed .title-underline {
+  opacity: 0.3;
 }
 
 .item-description {
@@ -427,7 +555,6 @@ function handleSwitchDesktop() {
 .todo-item--completed .item-footer {
   border-top-color: transparent;
 }
-
 
 /* Dark mode adjustments are handled by CSS variables in App.vue */
 

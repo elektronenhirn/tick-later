@@ -22,10 +22,12 @@ pub struct Todo {
     pub created_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub virtual_desktop: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 
 impl Todo {
-    pub fn new(title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>) -> Self {
+    pub fn new(title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>, color: Option<String>) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             title,
@@ -34,6 +36,7 @@ impl Todo {
             completed: false,
             created_at: Utc::now(),
             virtual_desktop,
+            color,
         }
     }
 }
@@ -95,9 +98,9 @@ fn load_todos(app_handle: AppHandle, db_path: State<DatabasePath>) -> Result<Vec
 }
 
 #[tauri::command]
-fn save_todo(app_handle: AppHandle, db_path: State<DatabasePath>, title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>) -> Result<Todo, String> {
+fn save_todo(app_handle: AppHandle, db_path: State<DatabasePath>, title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>, color: Option<String>) -> Result<Todo, String> {
     let mut todos = load_todos_from_file(&app_handle, &db_path)?;
-    let new_todo = Todo::new(title, description, revisit_at, virtual_desktop);
+    let new_todo = Todo::new(title, description, revisit_at, virtual_desktop, color);
 
     todos.push(new_todo.clone());
     save_todos_to_file(&app_handle, &db_path, &todos)?;
@@ -131,6 +134,8 @@ fn update_todo(
     clear_description: Option<bool>,
     virtual_desktop: Option<u32>,
     clear_virtual_desktop: Option<bool>,
+    color: Option<String>,
+    clear_color: Option<bool>,
 ) -> Result<Todo, String> {
     let mut todos = load_todos_from_file(&app_handle, &db_path)?;
 
@@ -156,6 +161,12 @@ fn update_todo(
         todo.virtual_desktop = None;
     } else if virtual_desktop.is_some() {
         todo.virtual_desktop = virtual_desktop;
+    }
+
+    if clear_color.unwrap_or(false) {
+        todo.color = None;
+    } else if color.is_some() {
+        todo.color = color;
     }
 
     let updated_todo = todo.clone();

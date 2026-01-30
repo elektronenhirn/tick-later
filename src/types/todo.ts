@@ -6,6 +6,7 @@ export interface Todo {
   completed: boolean;
   created_at: string; // ISO date string
   virtual_desktop?: number; // 0-indexed desktop number
+  color?: string; // Custom hatching color (hex)
 }
 
 export interface DesktopInfo {
