@@ -128,6 +128,17 @@ const hatchColor = computed(() => {
   return colorPalette[Math.abs(hash) % colorPalette.length];
 });
 
+// Unique hatch angle per todo (0-360 degrees)
+const hatchAngle = computed(() => {
+  let hash = 0;
+  for (let i = 0; i < props.todo.id.length; i++) {
+    const char = props.todo.id.charCodeAt(i);
+    hash = ((hash << 7) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash) % 360;
+});
+
 function handleToggleComplete() {
   emit("toggleComplete", props.todo.id);
 }
@@ -177,7 +188,7 @@ function handleSwitchDesktop() {
     <div class="sidepanel" :style="{ '--hatch-color': hatchColor }">
       <svg class="sidepanel-hatch" viewBox="0 0 28 100" preserveAspectRatio="none">
         <defs>
-          <pattern :id="`diagonal-hatch-${todo.id}`" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+          <pattern :id="`diagonal-hatch-${todo.id}`" patternUnits="userSpaceOnUse" width="6" height="6" :patternTransform="`rotate(${hatchAngle})`">
             <line x1="0" y1="0" x2="0" y2="6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
           </pattern>
           <filter :id="`sketchy-sidepanel-${todo.id}`" x="-20%" y="-5%" width="140%" height="110%">
