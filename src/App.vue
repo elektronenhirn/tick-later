@@ -273,8 +273,16 @@ function handleKeydown(event: KeyboardEvent) {
 
 const appVersion = ref("");
 
+// Handler for E2E test database switch
+function handleE2eDatabaseSwitch(event: CustomEvent<{ todos: Todo[] }>) {
+  todos.value = event.detail.todos;
+  console.log("[E2E] Database switched, todos reloaded:", todos.value.length);
+}
+
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown);
+  // Listen for E2E test database switch events
+  window.addEventListener('e2e-database-switched', handleE2eDatabaseSwitch as EventListener);
   await loadTodos();
   currentDbPath.value = await invoke<string>("get_current_database_path");
   appVersion.value = await getVersion();
@@ -282,6 +290,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('e2e-database-switched', handleE2eDatabaseSwitch as EventListener);
 });
 </script>
 
