@@ -274,9 +274,9 @@ onUnmounted(() => {
         <span class="terminal-badge">TERMINAL</span>
         <span class="terminal-todo" v-if="todoTitle">{{ todoTitle }}</span>
       </div>
-      <button @click="emit('close')" class="terminal-close-btn" title="Close terminal">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 6L6 18M6 6l12 12"/>
+      <button @click="emit('close')" class="terminal-close-btn" title="Hide terminal (keeps running)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 6 15 12 9 18"/>
         </svg>
       </button>
     </header>
