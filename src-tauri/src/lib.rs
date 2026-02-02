@@ -321,6 +321,56 @@ fn set_virtual_desktop_count(count: u32) -> Result<(), String> {
     virtual_desktop::set_desktop_count(count)
 }
 
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn move_active_window_to_desktop(desktop: u32) -> Result<(), String> {
+    virtual_desktop::move_active_window_to_desktop(desktop)
+}
+
+/// Open a URL on a specific desktop.
+///
+/// Algorithm:
+/// - If there is NO browser window on the target desktop:
+///   Switch to the target desktop, then open the URL in a NEW browser window
+/// - If there IS a browser window on the target desktop:
+///   Switch to the target desktop, then open the URL in the existing browser
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn open_url_on_desktop(url: String, desktop: u32) -> Result<(), String> {
+    use std::process::Command;
+
+    // Ensure the target desktop exists
+    let total = virtual_desktop::get_desktop_count()?;
+    if desktop >= total {
+        virtual_desktop::set_desktop_count(desktop + 1)?;
+    }
+
+    // Check if there's already a browser window on the target desktop
+    let browser_exists = virtual_desktop::find_browser_on_desktop(desktop)?.is_some();
+
+    // Switch to the target desktop first
+    virtual_desktop::switch_to_desktop(desktop)?;
+
+    if browser_exists {
+        // Browser exists on target desktop - open URL in existing browser (new tab)
+        Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open URL: {}", e))?;
+    } else {
+        // No browser on target desktop - open URL in a NEW browser window
+        let browser = virtual_desktop::detect_default_browser()?;
+
+        Command::new(&browser)
+            .arg("--new-window")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open new browser window: {}", e))?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -351,7 +401,11 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             switch_to_previous_virtual_desktop,
             #[cfg(target_os = "linux")]
-            set_virtual_desktop_count
+            set_virtual_desktop_count,
+            #[cfg(target_os = "linux")]
+            move_active_window_to_desktop,
+            #[cfg(target_os = "linux")]
+            open_url_on_desktop
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

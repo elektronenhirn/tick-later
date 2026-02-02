@@ -211,3 +211,244 @@ pub fn switch_to_previous_desktop() -> Result<u32, String> {
     switch_to_desktop(prev)?;
     Ok(prev)
 }
+
+/// Get the currently active (focused) window
+pub fn get_active_window() -> Result<u32, String> {
+    let (conn, screen_num) = RustConnection::connect(None)
+        .map_err(|e| format!("Failed to connect to X server: {}", e))?;
+
+    let screen = &conn.setup().roots[screen_num];
+    let root = screen.root;
+
+    let atom = get_atom(&conn, "_NET_ACTIVE_WINDOW")?;
+
+    let reply = conn
+        .get_property(false, root, atom, AtomEnum::WINDOW, 0, 1)
+        .map_err(|e| format!("Failed to send get_property request: {}", e))?
+        .reply()
+        .map_err(|e| format!("Failed to get active window: {}", e))?;
+
+    if reply.value.len() < 4 {
+        return Err("No active window".to_string());
+    }
+
+    Ok(u32::from_ne_bytes([
+        reply.value[0],
+        reply.value[1],
+        reply.value[2],
+        reply.value[3],
+    ]))
+}
+
+/// Move a window to a specific desktop
+pub fn move_window_to_desktop(window: u32, desktop: u32) -> Result<(), String> {
+    // Ensure the target desktop exists
+    let total = get_desktop_count()?;
+    if desktop >= total {
+        set_desktop_count(desktop + 1)?;
+    }
+
+    let (conn, screen_num) = RustConnection::connect(None)
+        .map_err(|e| format!("Failed to connect to X server: {}", e))?;
+
+    let screen = &conn.setup().roots[screen_num];
+    let root = screen.root;
+
+    let atom = get_atom(&conn, "_NET_WM_DESKTOP")?;
+
+    // Send a client message to move the window to the specified desktop
+    // Source indication: 2 = pager/direct user action
+    let event = xproto::ClientMessageEvent {
+        response_type: xproto::CLIENT_MESSAGE_EVENT,
+        format: 32,
+        sequence: 0,
+        window,
+        type_: atom,
+        data: xproto::ClientMessageData::from([desktop, 2, 0, 0, 0]),
+    };
+
+    conn.send_event(
+        false,
+        root,
+        xproto::EventMask::SUBSTRUCTURE_NOTIFY | xproto::EventMask::SUBSTRUCTURE_REDIRECT,
+        event,
+    )
+    .map_err(|e| format!("Failed to send window move event: {}", e))?;
+
+    conn.flush()
+        .map_err(|e| format!("Failed to flush X connection: {}", e))?;
+
+    Ok(())
+}
+
+/// Move the currently active window to a specific desktop
+pub fn move_active_window_to_desktop(desktop: u32) -> Result<(), String> {
+    let window = get_active_window()?;
+    move_window_to_desktop(window, desktop)
+}
+
+/// Get list of all client windows
+pub fn get_all_windows() -> Result<Vec<u32>, String> {
+    let (conn, screen_num) = RustConnection::connect(None)
+        .map_err(|e| format!("Failed to connect to X server: {}", e))?;
+
+    let screen = &conn.setup().roots[screen_num];
+    let root = screen.root;
+
+    let atom = get_atom(&conn, "_NET_CLIENT_LIST")?;
+
+    let reply = conn
+        .get_property(false, root, atom, AtomEnum::WINDOW, 0, 1024)
+        .map_err(|e| format!("Failed to send get_property request: {}", e))?
+        .reply()
+        .map_err(|e| format!("Failed to get client list: {}", e))?;
+
+    // Parse window IDs from the reply (array of 32-bit values)
+    let windows: Vec<u32> = reply
+        .value
+        .chunks_exact(4)
+        .map(|chunk| u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .collect();
+
+    Ok(windows)
+}
+
+/// Get the desktop a window is on
+pub fn get_window_desktop(window: u32) -> Result<u32, String> {
+    let (conn, _) = RustConnection::connect(None)
+        .map_err(|e| format!("Failed to connect to X server: {}", e))?;
+
+    let atom = get_atom(&conn, "_NET_WM_DESKTOP")?;
+
+    let reply = conn
+        .get_property(false, window, atom, AtomEnum::CARDINAL, 0, 1)
+        .map_err(|e| format!("Failed to send get_property request: {}", e))?
+        .reply()
+        .map_err(|e| format!("Failed to get window desktop: {}", e))?;
+
+    if reply.value.len() < 4 {
+        return Err("Window has no desktop property".to_string());
+    }
+
+    Ok(u32::from_ne_bytes([
+        reply.value[0],
+        reply.value[1],
+        reply.value[2],
+        reply.value[3],
+    ]))
+}
+
+/// Get the WM_CLASS of a window (returns instance and class names)
+pub fn get_window_class(window: u32) -> Result<(String, String), String> {
+    let (conn, _) = RustConnection::connect(None)
+        .map_err(|e| format!("Failed to connect to X server: {}", e))?;
+
+    let reply = conn
+        .get_property(false, window, xproto::AtomEnum::WM_CLASS, xproto::AtomEnum::STRING, 0, 256)
+        .map_err(|e| format!("Failed to send get_property request: {}", e))?
+        .reply()
+        .map_err(|e| format!("Failed to get WM_CLASS: {}", e))?;
+
+    // WM_CLASS contains two null-terminated strings: instance name and class name
+    let parts: Vec<&[u8]> = reply.value.split(|&b| b == 0).collect();
+
+    let instance = parts.first()
+        .map(|s| String::from_utf8_lossy(s).to_string())
+        .unwrap_or_default();
+    let class = parts.get(1)
+        .map(|s| String::from_utf8_lossy(s).to_string())
+        .unwrap_or_default();
+
+    Ok((instance, class))
+}
+
+/// Known browser class names (lowercase for comparison)
+const BROWSER_CLASSES: &[&str] = &[
+    "firefox",
+    "firefox-esr",
+    "chromium",
+    "chromium-browser",
+    "google-chrome",
+    "brave-browser",
+    "vivaldi",
+    "opera",
+    "microsoft-edge",
+    "epiphany",
+    "webkit",
+    "navigator",  // Firefox sometimes uses this
+];
+
+/// Check if a window is a browser based on its WM_CLASS
+pub fn is_browser_window(window: u32) -> bool {
+    if let Ok((instance, class)) = get_window_class(window) {
+        let instance_lower = instance.to_lowercase();
+        let class_lower = class.to_lowercase();
+
+        BROWSER_CLASSES.iter().any(|&browser| {
+            instance_lower.contains(browser) || class_lower.contains(browser)
+        })
+    } else {
+        false
+    }
+}
+
+/// Find browser windows on a specific desktop
+pub fn find_browser_on_desktop(desktop: u32) -> Result<Option<u32>, String> {
+    let windows = get_all_windows()?;
+
+    for window in windows {
+        // Check if window is on the target desktop
+        if let Ok(win_desktop) = get_window_desktop(window) {
+            if win_desktop == desktop && is_browser_window(window) {
+                return Ok(Some(window));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+/// Detect the default browser command
+pub fn detect_default_browser() -> Result<String, String> {
+    use std::process::Command;
+
+    // Try xdg-settings to get default browser
+    let output = Command::new("xdg-settings")
+        .args(["get", "default-web-browser"])
+        .output()
+        .map_err(|e| format!("Failed to run xdg-settings: {}", e))?;
+
+    let desktop_file = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+    // Map common .desktop files to browser commands
+    let browser_cmd = if desktop_file.contains("firefox") {
+        "firefox"
+    } else if desktop_file.contains("chromium") {
+        "chromium"
+    } else if desktop_file.contains("google-chrome") {
+        "google-chrome"
+    } else if desktop_file.contains("brave") {
+        "brave-browser"
+    } else if desktop_file.contains("vivaldi") {
+        "vivaldi"
+    } else if desktop_file.contains("opera") {
+        "opera"
+    } else if desktop_file.contains("edge") {
+        "microsoft-edge"
+    } else {
+        // Fallback: try to find a browser in PATH
+        for browser in &["firefox", "chromium", "google-chrome", "chromium-browser"] {
+            if Command::new("which")
+                .arg(browser)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+            {
+                return Ok(browser.to_string());
+            }
+        }
+        return Err("Could not detect default browser".to_string());
+    };
+
+    Ok(browser_cmd.to_string())
+}

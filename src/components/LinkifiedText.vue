@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 const props = defineProps<{
   text: string;
+  virtualDesktop?: number;
 }>();
 
 // URL regex that matches http, https, and www URLs
@@ -59,6 +61,20 @@ async function handleLinkClick(event: MouseEvent, href: string) {
   event.preventDefault();
   event.stopPropagation();
   try {
+    // If a virtual desktop is associated, use the special command that
+    // opens the URL and moves the browser window to that desktop
+    if (props.virtualDesktop !== undefined) {
+      try {
+        await invoke("open_url_on_desktop", {
+          url: href,
+          desktop: props.virtualDesktop
+        });
+        return;
+      } catch (error) {
+        console.warn("Failed to open URL on desktop:", error);
+        // Fall through to regular URL opening
+      }
+    }
     await openUrl(href);
   } catch (error) {
     console.error("Failed to open URL:", error);

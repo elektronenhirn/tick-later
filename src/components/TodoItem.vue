@@ -217,7 +217,7 @@ function handleSwitchDesktop() {
         </button>
 
         <h3 class="item-title" :style="{ '--title-color': hatchColor }">
-          <LinkifiedText :text="todo.title" />
+          <LinkifiedText :text="todo.title" :virtualDesktop="todo.virtual_desktop" />
           <svg class="title-underline" viewBox="0 0 100 6" preserveAspectRatio="none">
             <filter id="sketch-underline" x="-10%" y="-50%" width="120%" height="200%">
               <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="2" result="noise" seed="3"/>
@@ -268,7 +268,7 @@ function handleSwitchDesktop() {
 
       <div class="item-content" v-if="todo.description">
         <p class="item-description">
-          <LinkifiedText :text="todo.description" />
+          <LinkifiedText :text="todo.description" :virtualDesktop="todo.virtual_desktop" />
         </p>
       </div>
 
