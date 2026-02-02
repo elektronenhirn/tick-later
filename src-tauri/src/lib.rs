@@ -315,6 +315,12 @@ fn switch_to_previous_virtual_desktop() -> Result<u32, String> {
     virtual_desktop::switch_to_previous_desktop()
 }
 
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn set_virtual_desktop_count(count: u32) -> Result<(), String> {
+    virtual_desktop::set_desktop_count(count)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -343,7 +349,9 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             switch_to_next_virtual_desktop,
             #[cfg(target_os = "linux")]
-            switch_to_previous_virtual_desktop
+            switch_to_previous_virtual_desktop,
+            #[cfg(target_os = "linux")]
+            set_virtual_desktop_count
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

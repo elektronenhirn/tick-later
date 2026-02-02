@@ -116,23 +116,55 @@ pub fn get_desktop_count() -> Result<u32, String> {
     get_u32_property(&conn, root, atom)
 }
 
-/// Switch to a specific desktop by index (0-based)
-pub fn switch_to_desktop(desktop: u32) -> Result<(), String> {
+/// Set the number of desktops
+pub fn set_desktop_count(count: u32) -> Result<(), String> {
     let (conn, screen_num) = RustConnection::connect(None)
         .map_err(|e| format!("Failed to connect to X server: {}", e))?;
 
     let screen = &conn.setup().roots[screen_num];
     let root = screen.root;
 
-    // Verify the desktop index is valid
+    let atom = get_atom(&conn, "_NET_NUMBER_OF_DESKTOPS")?;
+
+    // Send a client message to the root window to request changing the desktop count
+    let event = xproto::ClientMessageEvent {
+        response_type: xproto::CLIENT_MESSAGE_EVENT,
+        format: 32,
+        sequence: 0,
+        window: root,
+        type_: atom,
+        data: xproto::ClientMessageData::from([count, 0, 0, 0, 0]),
+    };
+
+    conn.send_event(
+        false,
+        root,
+        xproto::EventMask::SUBSTRUCTURE_NOTIFY | xproto::EventMask::SUBSTRUCTURE_REDIRECT,
+        event,
+    )
+    .map_err(|e| format!("Failed to send desktop count event: {}", e))?;
+
+    conn.flush()
+        .map_err(|e| format!("Failed to flush X connection: {}", e))?;
+
+    Ok(())
+}
+
+/// Switch to a specific desktop by index (0-based).
+/// If the desktop doesn't exist, it will be created automatically.
+pub fn switch_to_desktop(desktop: u32) -> Result<(), String> {
+    // Check if we need to create more desktops
     let total = get_desktop_count()?;
     if desktop >= total {
-        return Err(format!(
-            "Desktop index {} out of range (0-{})",
-            desktop,
-            total - 1
-        ));
+        // Create enough desktops to include the target
+        set_desktop_count(desktop + 1)?;
     }
+
+    let (conn, screen_num) = RustConnection::connect(None)
+        .map_err(|e| format!("Failed to connect to X server: {}", e))?;
+
+    let screen = &conn.setup().roots[screen_num];
+    let root = screen.root;
 
     let atom = get_atom(&conn, "_NET_CURRENT_DESKTOP")?;
 
