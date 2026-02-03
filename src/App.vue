@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getVersion } from "@tauri-apps/api/app";
-import type { Todo } from "./types/todo";
+import type { Todo, WorkspaceApp } from "./types/todo";
 import TodoList from "./components/TodoList.vue";
 import TodoForm from "./components/TodoForm.vue";
 import TerminalPanel from "./components/TerminalPanel.vue";
@@ -37,15 +37,17 @@ async function loadTodos() {
   }
 }
 
-async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string; virtualDesktop?: number; color?: string }) {
+async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string; virtualDesktop?: number; color?: string; workspaceApps?: WorkspaceApp[] }) {
   try {
-    const newTodo = await invoke<Todo>("save_todo", {
+    const payload = {
       title: todoData.title,
       description: todoData.description,
-      revisitAt: new Date(todoData.revisitAt).toISOString(),
-      virtualDesktop: todoData.virtualDesktop,
-      color: todoData.color
-    });
+      revisit_at: new Date(todoData.revisitAt).toISOString(),
+      virtual_desktop: todoData.virtualDesktop,
+      color: todoData.color,
+      workspace_apps: todoData.workspaceApps
+    };
+    const newTodo = await invoke<Todo>("save_todo", { payload });
     todos.value.push(newTodo);
     showTodoForm.value = false;
   } catch (e) {
@@ -67,10 +69,11 @@ async function handleToggleComplete(todoId: string) {
 
 async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
   try {
-    await invoke("update_todo", {
+    const payload = {
       id: todoData.id,
-      revisitAt: new Date(todoData.revisitAt).toISOString()
-    });
+      revisit_at: new Date(todoData.revisitAt).toISOString()
+    };
+    await invoke("update_todo", { payload });
     const todo = todos.value.find(t => t.id === todoData.id);
     if (todo) {
       todo.revisit_at = todoData.revisitAt;
@@ -80,19 +83,22 @@ async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
   }
 }
 
-async function handleEditTodo(todoData: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean; color?: string; clearColor?: boolean }) {
+async function handleEditTodo(todoData: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean; color?: string; clearColor?: boolean; workspaceApps?: WorkspaceApp[]; clearWorkspaceApps?: boolean }) {
   try {
-    const updatedTodo = await invoke<Todo>("update_todo", {
+    const payload = {
       id: todoData.id,
       title: todoData.title,
       description: todoData.description,
-      revisitAt: new Date(todoData.revisitAt).toISOString(),
-      clearDescription: !todoData.description,
-      virtualDesktop: todoData.virtualDesktop,
-      clearVirtualDesktop: todoData.clearVirtualDesktop,
+      revisit_at: new Date(todoData.revisitAt).toISOString(),
+      clear_description: !todoData.description,
+      virtual_desktop: todoData.virtualDesktop,
+      clear_virtual_desktop: todoData.clearVirtualDesktop,
       color: todoData.color,
-      clearColor: todoData.clearColor
-    });
+      clear_color: todoData.clearColor,
+      workspace_apps: todoData.workspaceApps,
+      clear_workspace_apps: todoData.clearWorkspaceApps
+    };
+    const updatedTodo = await invoke<Todo>("update_todo", { payload });
     const index = todos.value.findIndex(t => t.id === todoData.id);
     if (index !== -1) {
       todos.value[index] = updatedTodo;
@@ -142,6 +148,21 @@ async function handleSwitchDesktop(desktop: number) {
     await invoke("switch_virtual_desktop", { desktop });
   } catch (e) {
     error.value = `Failed to switch desktop: ${e}`;
+  }
+}
+
+async function handleLaunchWorkspace(todo: Todo) {
+  if (!todo.workspace_apps || todo.workspace_apps.length === 0) {
+    return;
+  }
+  try {
+    const payload = {
+      apps: todo.workspace_apps,
+      virtual_desktop: todo.virtual_desktop
+    };
+    await invoke("launch_workspace", { payload });
+  } catch (e) {
+    error.value = `Failed to launch workspace: ${e}`;
   }
 }
 
@@ -363,6 +384,7 @@ onUnmounted(() => {
         @edit-todo="openEditForm"
         @open-terminal="handleOpenTerminal"
         @switch-desktop="handleSwitchDesktop"
+        @launch-workspace="handleLaunchWorkspace"
       />
     </div>
 

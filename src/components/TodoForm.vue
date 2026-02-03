@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type { Todo, DesktopInfo } from "../types/todo";
+import type { Todo, DesktopInfo, WorkspaceApp } from "../types/todo";
 
 const props = defineProps<{
   editingTodo?: Todo;
 }>();
 
 const emit = defineEmits<{
-  addTodo: [todo: { title: string; description?: string; revisitAt: string; virtualDesktop?: number; color?: string }];
-  updateTodo: [todo: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean; color?: string; clearColor?: boolean }];
+  addTodo: [todo: { title: string; description?: string; revisitAt: string; virtualDesktop?: number; color?: string; workspaceApps?: WorkspaceApp[] }];
+  updateTodo: [todo: { id: string; title: string; description?: string; revisitAt: string; virtualDesktop?: number; clearVirtualDesktop?: boolean; color?: string; clearColor?: boolean; workspaceApps?: WorkspaceApp[]; clearWorkspaceApps?: boolean }];
 }>();
 
 const title = ref("");
@@ -20,6 +20,8 @@ const desktopInfo = ref<DesktopInfo | null>(null);
 const desktopSupported = ref(false);
 const selectedColor = ref<string | null>(null);
 const showColorPicker = ref(false);
+const workspaceApps = ref<WorkspaceApp[]>([]);
+const showWorkspaceApps = ref(false);
 
 // Premium colored pencil palette
 const colorPalette = [
@@ -87,6 +89,8 @@ watch(() => props.editingTodo, (todo) => {
     description.value = todo.description || "";
     virtualDesktop.value = todo.virtual_desktop ?? null;
     selectedColor.value = todo.color ?? null;
+    workspaceApps.value = todo.workspace_apps ? [...todo.workspace_apps] : [];
+    showWorkspaceApps.value = workspaceApps.value.length > 0;
     // Format the date for datetime-local input
     const date = new Date(todo.revisit_at);
     const year = date.getFullYear();
@@ -107,16 +111,28 @@ function resetForm() {
   virtualDesktop.value = null;
   selectedColor.value = null;
   showColorPicker.value = false;
+  workspaceApps.value = [];
+  showWorkspaceApps.value = false;
 }
 
 function handleSubmit() {
   if (!title.value.trim() || !revisitAt.value) return;
+
+  // Filter out empty workspace apps and clean up working_dir
+  const validApps = workspaceApps.value
+    .filter(app => app.command.trim())
+    .map(app => ({
+      command: app.command.trim(),
+      working_dir: app.working_dir?.trim() || undefined
+    }));
 
   if (isEditMode.value && props.editingTodo) {
     const hadDesktop = props.editingTodo.virtual_desktop !== undefined;
     const hasDesktop = virtualDesktop.value !== null;
     const hadColor = props.editingTodo.color !== undefined;
     const hasColor = selectedColor.value !== null;
+    const hadApps = props.editingTodo.workspace_apps && props.editingTodo.workspace_apps.length > 0;
+    const hasApps = validApps.length > 0;
     emit("updateTodo", {
       id: props.editingTodo.id,
       title: title.value.trim(),
@@ -125,7 +141,9 @@ function handleSubmit() {
       virtualDesktop: virtualDesktop.value ?? undefined,
       clearVirtualDesktop: hadDesktop && !hasDesktop,
       color: selectedColor.value ?? undefined,
-      clearColor: hadColor && !hasColor
+      clearColor: hadColor && !hasColor,
+      workspaceApps: hasApps ? validApps : undefined,
+      clearWorkspaceApps: hadApps && !hasApps
     });
   } else {
     emit("addTodo", {
@@ -133,7 +151,8 @@ function handleSubmit() {
       description: description.value.trim() || undefined,
       revisitAt: revisitAt.value,
       virtualDesktop: virtualDesktop.value ?? undefined,
-      color: selectedColor.value ?? undefined
+      color: selectedColor.value ?? undefined,
+      workspaceApps: validApps.length > 0 ? validApps : undefined
     });
   }
 
@@ -150,6 +169,15 @@ function handleDrop(event: DragEvent) {
 
 function handleDragOver(event: DragEvent) {
   event.preventDefault();
+}
+
+// Workspace apps management
+function addWorkspaceApp() {
+  workspaceApps.value.push({ command: "", working_dir: undefined });
+}
+
+function removeWorkspaceApp(index: number) {
+  workspaceApps.value.splice(index, 1);
 }
 
 // Quick schedule presets
@@ -329,6 +357,74 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
             <span v-if="desktopInfo.current === i - 1" class="current-indicator" title="Current desktop"></span>
           </button>
         </div>
+      </div>
+
+      <div class="form-field">
+        <label class="field-label">
+          <span class="label-text">Workspace Apps</span>
+          <span class="label-optional">optional</span>
+        </label>
+
+        <button
+          type="button"
+          class="workspace-toggle"
+          @click="showWorkspaceApps = !showWorkspaceApps"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span>{{ workspaceApps.length > 0 ? `${workspaceApps.length} app(s) configured` : 'Configure workspace apps' }}</span>
+          <svg class="chevron" :class="{ 'chevron--open': showWorkspaceApps }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        <Transition name="picker">
+          <div v-if="showWorkspaceApps" class="workspace-apps-panel">
+            <p class="workspace-hint">Apps to launch when starting this workspace. They will open on the virtual desktop if set.</p>
+
+            <div v-for="(app, index) in workspaceApps" :key="index" class="workspace-app-entry">
+              <div class="app-fields">
+                <input
+                  v-model="app.command"
+                  type="text"
+                  placeholder="Command (e.g., code .)"
+                  class="app-input app-input--command"
+                />
+                <input
+                  v-model="app.working_dir"
+                  type="text"
+                  placeholder="Working directory (optional)"
+                  class="app-input app-input--dir"
+                />
+              </div>
+              <button
+                type="button"
+                class="app-remove-btn"
+                @click="removeWorkspaceApp(index)"
+                title="Remove app"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="add-app-btn"
+              @click="addWorkspaceApp"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Application
+            </button>
+          </div>
+        </Transition>
       </div>
 
       <div class="form-actions">
@@ -699,6 +795,129 @@ function setQuickSchedule(preset: 'in1h' | 'in3h' | 'tomorrow' | 'nextWeek') {
 .picker-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* Workspace Apps */
+.workspace-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 2px solid var(--rule-line);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.workspace-toggle:hover {
+  border-color: var(--ink);
+}
+
+.workspace-toggle .chevron {
+  margin-left: auto;
+}
+
+.workspace-apps-panel {
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink-shadow);
+  margin-top: 4px;
+  padding: 16px;
+}
+
+.workspace-hint {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.workspace-app-entry {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.app-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-input {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--paper-alt);
+  border: 1px solid var(--rule-line);
+  padding: 8px 10px;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.app-input::placeholder {
+  color: var(--ink-light);
+  opacity: 0.7;
+}
+
+.app-input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+.app-input--command,
+.app-input--dir {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.app-remove-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.app-remove-btn:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.add-app-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-light);
+  background: transparent;
+  border: 2px dashed var(--rule-line);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-app-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--paper-alt);
 }
 
 @media (max-width: 768px) {

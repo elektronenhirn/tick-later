@@ -15,6 +15,7 @@ const emit = defineEmits<{
   moveTodo: [todoId: string, section: string];
   openTerminal: [todo: Todo];
   switchDesktop: [desktop: number];
+  launchWorkspace: [todo: Todo];
 }>();
 
 // Context menu state
@@ -171,6 +172,10 @@ function handleSwitchDesktop() {
     emit("switchDesktop", props.todo.virtual_desktop);
   }
 }
+
+function handleLaunchWorkspace() {
+  emit("launchWorkspace", props.todo);
+}
 </script>
 
 <template>
@@ -228,6 +233,16 @@ function handleSwitchDesktop() {
         </h3>
 
         <div class="item-actions">
+          <button
+            v-if="todo.workspace_apps && todo.workspace_apps.length > 0"
+            class="action-btn action-btn--workspace"
+            @click="handleLaunchWorkspace"
+            :title="`Launch workspace (${todo.workspace_apps.length} app${todo.workspace_apps.length > 1 ? 's' : ''})`"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </button>
           <button
             v-if="todo.virtual_desktop !== undefined"
             class="action-btn action-btn--desktop"
@@ -467,6 +482,16 @@ function handleSwitchDesktop() {
 .action-btn--terminal:hover {
   color: var(--future);
   border-color: var(--future);
+}
+
+.action-btn--workspace {
+  opacity: 0.8 !important;
+}
+
+.action-btn--workspace:hover {
+  opacity: 1 !important;
+  color: var(--success);
+  border-color: var(--success);
 }
 
 .action-btn--desktop {

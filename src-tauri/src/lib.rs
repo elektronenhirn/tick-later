@@ -12,6 +12,15 @@ use terminal::{TerminalManager, TerminalState};
 #[cfg(target_os = "linux")]
 mod virtual_desktop;
 
+/// An application that can be launched as part of a workspace setup
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct WorkspaceApp {
+    #[serde(default)]
+    pub command: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_dir: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Todo {
     pub id: String,
@@ -24,10 +33,19 @@ pub struct Todo {
     pub virtual_desktop: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_apps: Option<Vec<WorkspaceApp>>,
 }
 
 impl Todo {
-    pub fn new(title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>, color: Option<String>) -> Self {
+    pub fn new(
+        title: String,
+        description: Option<String>,
+        revisit_at: DateTime<Utc>,
+        virtual_desktop: Option<u32>,
+        color: Option<String>,
+        workspace_apps: Option<Vec<WorkspaceApp>>,
+    ) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             title,
@@ -37,6 +55,7 @@ impl Todo {
             created_at: Utc::now(),
             virtual_desktop,
             color,
+            workspace_apps,
         }
     }
 }
@@ -97,10 +116,31 @@ fn load_todos(app_handle: AppHandle, db_path: State<DatabasePath>) -> Result<Vec
     load_todos_from_file(&app_handle, &db_path)
 }
 
+#[derive(Debug, Deserialize)]
+struct SaveTodoPayload {
+    title: String,
+    description: Option<String>,
+    revisit_at: DateTime<Utc>,
+    virtual_desktop: Option<u32>,
+    color: Option<String>,
+    workspace_apps: Option<Vec<WorkspaceApp>>,
+}
+
 #[tauri::command]
-fn save_todo(app_handle: AppHandle, db_path: State<DatabasePath>, title: String, description: Option<String>, revisit_at: DateTime<Utc>, virtual_desktop: Option<u32>, color: Option<String>) -> Result<Todo, String> {
+fn save_todo(
+    app_handle: AppHandle,
+    db_path: State<DatabasePath>,
+    payload: SaveTodoPayload,
+) -> Result<Todo, String> {
     let mut todos = load_todos_from_file(&app_handle, &db_path)?;
-    let new_todo = Todo::new(title, description, revisit_at, virtual_desktop, color);
+    let new_todo = Todo::new(
+        payload.title,
+        payload.description,
+        payload.revisit_at,
+        payload.virtual_desktop,
+        payload.color,
+        payload.workspace_apps,
+    );
 
     todos.push(new_todo.clone());
     save_todos_to_file(&app_handle, &db_path, &todos)?;
@@ -123,10 +163,8 @@ fn toggle_todo_completion(app_handle: AppHandle, db_path: State<DatabasePath>, i
     Ok(new_status)
 }
 
-#[tauri::command]
-fn update_todo(
-    app_handle: AppHandle,
-    db_path: State<DatabasePath>,
+#[derive(Debug, Deserialize)]
+struct UpdateTodoPayload {
     id: String,
     title: Option<String>,
     description: Option<String>,
@@ -136,37 +174,52 @@ fn update_todo(
     clear_virtual_desktop: Option<bool>,
     color: Option<String>,
     clear_color: Option<bool>,
+    workspace_apps: Option<Vec<WorkspaceApp>>,
+    clear_workspace_apps: Option<bool>,
+}
+
+#[tauri::command]
+fn update_todo(
+    app_handle: AppHandle,
+    db_path: State<DatabasePath>,
+    payload: UpdateTodoPayload,
 ) -> Result<Todo, String> {
     let mut todos = load_todos_from_file(&app_handle, &db_path)?;
 
     let todo = todos.iter_mut()
-        .find(|t| t.id == id)
+        .find(|t| t.id == payload.id)
         .ok_or("Todo not found")?;
 
-    if let Some(new_title) = title {
+    if let Some(new_title) = payload.title {
         todo.title = new_title;
     }
 
-    if clear_description.unwrap_or(false) {
+    if payload.clear_description.unwrap_or(false) {
         todo.description = None;
-    } else if let Some(new_description) = description {
+    } else if let Some(new_description) = payload.description {
         todo.description = Some(new_description);
     }
 
-    if let Some(new_revisit_at) = revisit_at {
+    if let Some(new_revisit_at) = payload.revisit_at {
         todo.revisit_at = new_revisit_at;
     }
 
-    if clear_virtual_desktop.unwrap_or(false) {
+    if payload.clear_virtual_desktop.unwrap_or(false) {
         todo.virtual_desktop = None;
-    } else if virtual_desktop.is_some() {
-        todo.virtual_desktop = virtual_desktop;
+    } else if payload.virtual_desktop.is_some() {
+        todo.virtual_desktop = payload.virtual_desktop;
     }
 
-    if clear_color.unwrap_or(false) {
+    if payload.clear_color.unwrap_or(false) {
         todo.color = None;
-    } else if color.is_some() {
-        todo.color = color;
+    } else if payload.color.is_some() {
+        todo.color = payload.color;
+    }
+
+    if payload.clear_workspace_apps.unwrap_or(false) {
+        todo.workspace_apps = None;
+    } else if payload.workspace_apps.is_some() {
+        todo.workspace_apps = payload.workspace_apps;
     }
 
     let updated_todo = todo.clone();
@@ -371,6 +424,75 @@ fn open_url_on_desktop(url: String, desktop: u32) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+struct LaunchWorkspacePayload {
+    apps: Vec<WorkspaceApp>,
+    virtual_desktop: Option<u32>,
+}
+
+/// Launch workspace applications.
+/// On Linux with a virtual desktop specified, switches to that desktop first.
+#[tauri::command]
+fn launch_workspace(payload: LaunchWorkspacePayload) -> Result<(), String> {
+    use std::process::Command;
+
+    let virtual_desktop = payload.virtual_desktop;
+    let apps = payload.apps;
+
+    // On Linux, switch to the virtual desktop first if specified
+    #[cfg(target_os = "linux")]
+    if let Some(desktop) = virtual_desktop {
+        // Ensure the desktop exists
+        let total = virtual_desktop::get_desktop_count()?;
+        if desktop >= total {
+            virtual_desktop::set_desktop_count(desktop + 1)?;
+        }
+        virtual_desktop::switch_to_desktop(desktop)?;
+    }
+
+    // Suppress unused variable warning on non-Linux platforms
+    #[cfg(not(target_os = "linux"))]
+    let _ = virtual_desktop;
+
+    // Launch all applications using the user's shell as a login shell for full PATH access
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "sh".to_string());
+
+    for app in apps {
+        if app.command.trim().is_empty() {
+            continue;
+        }
+
+        // Use the user's shell as a login shell (-l) to source profile and get full PATH
+        let mut cmd = Command::new(&shell);
+        cmd.arg("-l");
+        cmd.arg("-c");
+        cmd.arg(&app.command);
+
+        // Set working directory if specified (expand ~ to home directory)
+        if let Some(ref dir) = app.working_dir {
+            let expanded_dir = if dir.starts_with("~/") {
+                if let Some(home) = std::env::var_os("HOME") {
+                    std::path::PathBuf::from(home).join(&dir[2..])
+                } else {
+                    std::path::PathBuf::from(dir)
+                }
+            } else if dir == "~" {
+                std::env::var_os("HOME")
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| std::path::PathBuf::from(dir))
+            } else {
+                std::path::PathBuf::from(dir)
+            };
+            cmd.current_dir(expanded_dir);
+        }
+
+        cmd.spawn()
+            .map_err(|e| format!("Failed to launch '{}': {}", app.command, e))?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -405,7 +527,8 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             move_active_window_to_desktop,
             #[cfg(target_os = "linux")]
-            open_url_on_desktop
+            open_url_on_desktop,
+            launch_workspace
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

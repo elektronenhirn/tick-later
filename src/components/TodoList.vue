@@ -34,6 +34,7 @@ const emit = defineEmits<{
   editTodo: [todo: Todo];
   openTerminal: [todo: Todo];
   switchDesktop: [desktop: number];
+  launchWorkspace: [todo: Todo];
 }>();
 
 const sortedTodos = computed(() => {
@@ -199,6 +200,10 @@ function handleOpenTerminal(todo: Todo) {
 function handleSwitchDesktop(desktop: number) {
   emit("switchDesktop", desktop);
 }
+
+function handleLaunchWorkspace(todo: Todo) {
+  emit("launchWorkspace", todo);
+}
 </script>
 
 <template>
@@ -228,6 +233,7 @@ function handleSwitchDesktop(desktop: number) {
             @move-todo="handleMoveTodo"
             @open-terminal="handleOpenTerminal"
             @switch-desktop="handleSwitchDesktop"
+            @launch-workspace="handleLaunchWorkspace"
           />
         </TransitionGroup>
       </div>
@@ -391,6 +397,7 @@ function handleSwitchDesktop(desktop: number) {
             @move-todo="handleMoveTodo"
             @open-terminal="handleOpenTerminal"
             @switch-desktop="handleSwitchDesktop"
+            @launch-workspace="handleLaunchWorkspace"
           />
         </TransitionGroup>
       </div>

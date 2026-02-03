@@ -65,6 +65,14 @@ export async function setupTestEnvironment(tempDbPath: string): Promise<void> {
 }
 
 /**
+ * Workspace app configuration for testing.
+ */
+export interface WorkspaceAppConfig {
+  command: string;
+  workingDir?: string;
+}
+
+/**
  * Helper to create a new todo with the given title.
  * Returns the unique title used.
  */
@@ -72,12 +80,20 @@ export async function createTodo(options: {
   title?: string;
   description?: string;
   color?: string;
+  virtualDesktop?: number;
+  workspaceApps?: WorkspaceAppConfig[];
 }): Promise<string> {
   const todoTitle = options.title || `Test Todo ${Date.now()}`;
+
+  // Scroll to top to ensure compose button is visible
+  await browser.execute(() => window.scrollTo(0, 0));
+  await browser.pause(200);
 
   // Click the compose button to open the "New Entry" modal
   const composeBtn = await $(".compose-btn");
   await composeBtn.waitForDisplayed({ timeout: 15000 });
+  await composeBtn.scrollIntoView();
+  await browser.pause(200);
   await composeBtn.click();
 
   // Wait for the modal to appear
@@ -110,8 +126,58 @@ export async function createTodo(options: {
     }
   }
 
+  // Select virtual desktop if provided
+  if (options.virtualDesktop !== undefined) {
+    // Desktop buttons: first is "None", then Desktop 1, Desktop 2, etc.
+    // So virtualDesktop=0 (Desktop 1) is at nth-child(2)
+    const desktopBtnIndex = options.virtualDesktop + 2;
+    const desktopBtn = await $(`.desktop-btn:nth-child(${desktopBtnIndex})`);
+    if (await desktopBtn.isExisting()) {
+      await desktopBtn.scrollIntoView();
+      await browser.pause(200);
+      await desktopBtn.click();
+      await browser.pause(300);
+    }
+  }
+
+  // Configure workspace apps if provided
+  if (options.workspaceApps && options.workspaceApps.length > 0) {
+    // Open the workspace apps panel
+    const workspaceToggle = await $(".workspace-toggle");
+    await workspaceToggle.scrollIntoView();
+    await workspaceToggle.click();
+    await browser.pause(300);
+
+    // Wait for the panel to appear
+    const workspacePanel = await $(".workspace-apps-panel");
+    await workspacePanel.waitForDisplayed({ timeout: 3000 });
+
+    for (const app of options.workspaceApps) {
+      // Click "Add Application" button
+      const addAppBtn = await $(".add-app-btn");
+      await addAppBtn.scrollIntoView();
+      await addAppBtn.click();
+      await browser.pause(200);
+
+      // Find the last added app entry (the one we just created)
+      const appEntries = await $$(".workspace-app-entry");
+      const lastEntry = appEntries[appEntries.length - 1];
+
+      // Fill in the command
+      const commandInput = await lastEntry.$(".app-input--command");
+      await commandInput.setValue(app.command);
+
+      // Fill in working directory if provided
+      if (app.workingDir) {
+        const dirInput = await lastEntry.$(".app-input--dir");
+        await dirInput.setValue(app.workingDir);
+      }
+    }
+  }
+
   // Set a revisit time using the "In 1h" quick schedule button
   const quickScheduleBtn = await $(".preset-btn");
+  await quickScheduleBtn.scrollIntoView();
   await quickScheduleBtn.click();
 
   // Submit the form - scroll into view first to avoid click interception
