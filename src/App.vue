@@ -18,6 +18,8 @@ const currentDbPath = ref<string>("");
 // Terminal state
 const terminalVisible = ref(false);
 const activeTerminalTodo = ref<Todo | null>(null);
+const terminalBusyStates = ref<Map<string, boolean>>(new Map());
+let terminalPollInterval: number | null = null;
 
 // Search state
 const showSearch = ref(false);
@@ -141,6 +143,41 @@ function handleOpenTerminal(todo: Todo) {
 
 function handleCloseTerminal() {
   terminalVisible.value = false;
+}
+
+// Poll terminal busy states for all todos with active terminals
+async function pollTerminalBusyStates() {
+  const newStates = new Map<string, boolean>();
+
+  for (const todo of todos.value) {
+    try {
+      const hasSession = await invoke<boolean>("has_terminal_session", { todoId: todo.id });
+      if (hasSession) {
+        const isBusy = await invoke<boolean | null>("is_terminal_busy", { todoId: todo.id });
+        if (isBusy !== null) {
+          newStates.set(todo.id, isBusy);
+        }
+      }
+    } catch {
+      // Ignore errors for individual todos
+    }
+  }
+
+  terminalBusyStates.value = newStates;
+}
+
+function startTerminalPolling() {
+  if (terminalPollInterval !== null) return;
+  // Poll immediately, then every 5 seconds
+  pollTerminalBusyStates();
+  terminalPollInterval = window.setInterval(pollTerminalBusyStates, 2000);
+}
+
+function stopTerminalPolling() {
+  if (terminalPollInterval !== null) {
+    clearInterval(terminalPollInterval);
+    terminalPollInterval = null;
+  }
 }
 
 async function handleSwitchDesktop(desktop: number) {
@@ -307,11 +344,14 @@ onMounted(async () => {
   await loadTodos();
   currentDbPath.value = await invoke<string>("get_current_database_path");
   appVersion.value = await getVersion();
+  // Start polling terminal busy states
+  startTerminalPolling();
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('e2e-database-switched', handleE2eDatabaseSwitch as EventListener);
+  stopTerminalPolling();
 });
 </script>
 
@@ -377,6 +417,7 @@ onUnmounted(() => {
         :database-path="currentDbPath"
         :app-version="appVersion"
         :highlighted-todo-id="highlightedTodoId"
+        :terminal-busy-states="terminalBusyStates"
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"

@@ -24,6 +24,7 @@ pub struct TerminalExited {
 pub struct TerminalSession {
     pub writer: Box<dyn Write + Send>,
     pub pty_pair: portable_pty::PtyPair,
+    pub shell_pid: Option<u32>,
 }
 
 /// Manages all terminal sessions
@@ -75,6 +76,9 @@ impl TerminalManager {
             .slave
             .spawn_command(cmd)
             .map_err(|e| format!("Failed to spawn shell: {}", e))?;
+
+        // Get the shell's PID before moving child to the monitoring thread
+        let shell_pid = child.process_id();
 
         // Spawn a thread to monitor the child process and emit exit event
         let todo_id_for_child = todo_id.clone();
@@ -146,6 +150,7 @@ impl TerminalManager {
             TerminalSession {
                 writer,
                 pty_pair: pair,
+                shell_pid,
             },
         );
 
@@ -198,6 +203,34 @@ impl TerminalManager {
 
     pub fn has_session(&self, todo_id: &str) -> bool {
         self.sessions.contains_key(todo_id)
+    }
+
+    /// Check if the terminal is busy (has child processes running)
+    /// Returns None if session doesn't exist, Some(true) if busy, Some(false) if idle
+    #[cfg(target_os = "linux")]
+    pub fn is_session_busy(&self, todo_id: &str) -> Option<bool> {
+        let session = self.sessions.get(todo_id)?;
+        let pid = session.shell_pid?;
+
+        // Check if the shell has any child processes
+        let children_path = format!("/proc/{}/task/{}/children", pid, pid);
+        if let Ok(content) = std::fs::read_to_string(&children_path) {
+            Some(!content.trim().is_empty())
+        } else {
+            // If we can't read the file, assume not busy (process might have exited)
+            Some(false)
+        }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn is_session_busy(&self, todo_id: &str) -> Option<bool> {
+        // On non-Linux platforms, we can't easily check for child processes
+        // Return None to indicate unknown state
+        if self.sessions.contains_key(todo_id) {
+            None
+        } else {
+            None
+        }
     }
 }
 

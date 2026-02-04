@@ -343,6 +343,21 @@ fn has_terminal_session(
     Ok(manager.has_session(&todo_id))
 }
 
+/// Check if a terminal session is busy (executing a command)
+/// Returns: Some(true) if busy, Some(false) if idle, None if unknown/unsupported
+#[tauri::command]
+fn is_terminal_busy(
+    terminal_state: State<TerminalState>,
+    todo_id: String,
+) -> Result<Option<bool>, String> {
+    let manager = terminal_state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to lock terminal state: {}", e))?;
+
+    Ok(manager.is_session_busy(&todo_id))
+}
+
 // Virtual desktop commands (Linux only)
 #[cfg(target_os = "linux")]
 #[tauri::command]
@@ -514,6 +529,7 @@ pub fn run() {
             resize_terminal,
             close_terminal_session,
             has_terminal_session,
+            is_terminal_busy,
             #[cfg(target_os = "linux")]
             get_virtual_desktop_info,
             #[cfg(target_os = "linux")]

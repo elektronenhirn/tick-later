@@ -6,6 +6,7 @@ import LinkifiedText from "./LinkifiedText.vue";
 const props = defineProps<{
   todo: Todo;
   isHighlighted?: boolean;
+  isTerminalBusy?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -223,6 +224,12 @@ function handleLaunchWorkspace() {
 
         <h3 class="item-title" :style="{ '--title-color': hatchColor }">
           <LinkifiedText :text="todo.title" :virtualDesktop="todo.virtual_desktop" />
+          <span v-if="isTerminalBusy" class="terminal-busy-indicator" title="Terminal is executing a command">
+            <span class="busy-dot"></span>
+          </span>
+          <span v-else-if="isTerminalBusy === false" class="terminal-idle-indicator" title="Terminal is idle">
+            <span class="idle-dot"></span>
+          </span>
           <svg class="title-underline" viewBox="0 0 100 6" preserveAspectRatio="none">
             <filter id="sketch-underline" x="-10%" y="-50%" width="120%" height="200%">
               <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="2" result="noise" seed="3"/>
@@ -551,7 +558,43 @@ function handleLaunchWorkspace() {
   line-height: 1.4;
   word-wrap: break-word;
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-busy-indicator,
+.terminal-idle-indicator {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.busy-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--warning, #f59e0b);
+  animation: pulse-busy 1s ease-in-out infinite;
+}
+
+.idle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--success, #10b981);
+  opacity: 0.7;
+}
+
+@keyframes pulse-busy {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
 }
 
 .title-underline {

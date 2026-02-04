@@ -24,6 +24,7 @@ const props = defineProps<{
   databasePath?: string;
   appVersion?: string;
   highlightedTodoId?: string | null;
+  terminalBusyStates?: Map<string, boolean>;
 }>();
 
 const emit = defineEmits<{
@@ -227,6 +228,7 @@ function handleLaunchWorkspace(todo: Todo) {
             :key="todo.id"
             :todo="todo"
             :is-highlighted="props.highlightedTodoId === todo.id"
+            :is-terminal-busy="props.terminalBusyStates?.get(todo.id)"
             @toggle-complete="handleToggleComplete"
             @delete-todo="handleDeleteTodo"
             @edit-todo="handleEditTodo"
@@ -265,11 +267,14 @@ function handleLaunchWorkspace(todo: Todo) {
                 :key="todo.id"
                 :todo="todo"
                 :is-highlighted="props.highlightedTodoId === todo.id"
+                :is-terminal-busy="props.terminalBusyStates?.get(todo.id)"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @open-terminal="handleOpenTerminal"
                 @switch-desktop="handleSwitchDesktop"
+                @launch-workspace="handleLaunchWorkspace"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -297,11 +302,14 @@ function handleLaunchWorkspace(todo: Todo) {
                 :key="todo.id"
                 :todo="todo"
                 :is-highlighted="props.highlightedTodoId === todo.id"
+                :is-terminal-busy="props.terminalBusyStates?.get(todo.id)"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @open-terminal="handleOpenTerminal"
                 @switch-desktop="handleSwitchDesktop"
+                @launch-workspace="handleLaunchWorkspace"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -329,11 +337,14 @@ function handleLaunchWorkspace(todo: Todo) {
                 :key="todo.id"
                 :todo="todo"
                 :is-highlighted="props.highlightedTodoId === todo.id"
+                :is-terminal-busy="props.terminalBusyStates?.get(todo.id)"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @open-terminal="handleOpenTerminal"
                 @switch-desktop="handleSwitchDesktop"
+                @launch-workspace="handleLaunchWorkspace"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -361,11 +372,14 @@ function handleLaunchWorkspace(todo: Todo) {
                 :key="todo.id"
                 :todo="todo"
                 :is-highlighted="props.highlightedTodoId === todo.id"
+                :is-terminal-busy="props.terminalBusyStates?.get(todo.id)"
                 @toggle-complete="handleToggleComplete"
                 @delete-todo="handleDeleteTodo"
                 @edit-todo="handleEditTodo"
                 @move-todo="handleMoveTodo"
+                @open-terminal="handleOpenTerminal"
                 @switch-desktop="handleSwitchDesktop"
+                @launch-workspace="handleLaunchWorkspace"
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
@@ -391,6 +405,7 @@ function handleLaunchWorkspace(todo: Todo) {
             :key="todo.id"
             :todo="todo"
             :is-highlighted="props.highlightedTodoId === todo.id"
+            :is-terminal-busy="props.terminalBusyStates?.get(todo.id)"
             @toggle-complete="handleToggleComplete"
             @delete-todo="handleDeleteTodo"
             @edit-todo="handleEditTodo"
