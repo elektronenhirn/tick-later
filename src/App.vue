@@ -799,8 +799,9 @@ onUnmounted(() => {
   box-shadow:
     8px 8px 0 var(--ink-shadow),
     0 24px 80px rgba(0,0,0,0.3);
-  max-width: 520px;
-  width: 100%;
+  width: 60%;
+  min-width: 400px;
+  max-width: 800px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;

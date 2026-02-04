@@ -629,6 +629,7 @@ function handleLaunchWorkspace() {
   margin: 0;
   line-height: 1.5;
   word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .todo-item--completed .item-description {
