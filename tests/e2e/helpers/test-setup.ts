@@ -126,27 +126,20 @@ export async function createTodo(options: {
     }
   }
 
-  // Select virtual desktop if provided
-  if (options.virtualDesktop !== undefined) {
-    // Desktop buttons: first is "None", then Desktop 1, Desktop 2, etc.
-    // So virtualDesktop=0 (Desktop 1) is at nth-child(2)
-    const desktopBtnIndex = options.virtualDesktop + 2;
-    const desktopBtn = await $(`.desktop-btn:nth-child(${desktopBtnIndex})`);
-    if (await desktopBtn.isExisting()) {
-      await desktopBtn.scrollIntoView();
-      await browser.pause(200);
-      await desktopBtn.click();
-      await browser.pause(300);
-    }
-  }
-
-  // Configure workspace apps if provided
+  // Configure workspace apps if provided (do this BEFORE virtual desktop to avoid scroll issues)
   if (options.workspaceApps && options.workspaceApps.length > 0) {
+    // Scroll modal to ensure workspace toggle is visible
+    await browser.execute(() => {
+      const modal = document.querySelector('.modal-content');
+      if (modal) modal.scrollTop = modal.scrollHeight;
+    });
+    await browser.pause(300);
+
     // Open the workspace apps panel
     const workspaceToggle = await $(".workspace-toggle");
     await workspaceToggle.scrollIntoView();
     await workspaceToggle.click();
-    await browser.pause(300);
+    await browser.pause(500);
 
     // Wait for the panel to appear
     const workspacePanel = await $(".workspace-apps-panel");
@@ -172,6 +165,27 @@ export async function createTodo(options: {
         const dirInput = await lastEntry.$(".app-input--dir");
         await dirInput.setValue(app.workingDir);
       }
+    }
+  }
+
+  // Select virtual desktop if provided (do this AFTER workspace apps)
+  if (options.virtualDesktop !== undefined) {
+    // Scroll back to top of modal to find desktop buttons
+    await browser.execute(() => {
+      const modal = document.querySelector('.modal-content');
+      if (modal) modal.scrollTop = 0;
+    });
+    await browser.pause(300);
+
+    // Desktop buttons: first is "None", then Desktop 1, Desktop 2, etc.
+    // So virtualDesktop=0 (Desktop 1) is at nth-child(2)
+    const desktopBtnIndex = options.virtualDesktop + 2;
+    const desktopBtn = await $(`.desktop-btn:nth-child(${desktopBtnIndex})`);
+    if (await desktopBtn.isExisting()) {
+      await desktopBtn.scrollIntoView();
+      await browser.pause(200);
+      await desktopBtn.click();
+      await browser.pause(500);
     }
   }
 
