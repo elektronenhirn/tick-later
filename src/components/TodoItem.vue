@@ -23,6 +23,13 @@ const emit = defineEmits<{
 const showContextMenu = ref(false);
 const menuPosition = ref({ x: 0, y: 0 });
 
+// Description expansion state
+const isDescriptionExpanded = ref(false);
+
+function toggleDescriptionExpanded() {
+  isDescriptionExpanded.value = !isDescriptionExpanded.value;
+}
+
 const menuOptions = [
   { label: "Next 2 Hours", section: "next2Hours" },
   { label: "2-4 Hours", section: "next2To4Hours" },
@@ -288,7 +295,13 @@ function handleLaunchWorkspace() {
         </div>
       </header>
 
-      <div class="item-content" v-if="todo.description">
+      <div
+        class="item-content"
+        v-if="todo.description"
+        :class="{ 'item-content--collapsed': !isDescriptionExpanded }"
+        @click.stop="toggleDescriptionExpanded"
+        :title="isDescriptionExpanded ? 'Click to collapse' : 'Click to expand'"
+      >
         <p class="item-description">
           <LinkifiedText :text="todo.description" :virtualDesktop="todo.virtual_desktop" />
         </p>
@@ -545,6 +558,24 @@ function handleLaunchWorkspace() {
 .item-content {
   flex: 1;
   min-width: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.item-content:hover {
+  background: var(--paper-alt);
+  margin: -4px;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.item-content--collapsed .item-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
 }
 
 .item-title {
