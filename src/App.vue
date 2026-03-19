@@ -63,6 +63,12 @@ async function handleToggleComplete(todoId: string) {
     const todo = todos.value.find(t => t.id === todoId);
     if (todo) {
       todo.completed = !todo.completed;
+      // Update completed_at timestamp
+      if (todo.completed) {
+        todo.completed_at = new Date().toISOString();
+      } else {
+        todo.completed_at = undefined;
+      }
     }
   } catch (e) {
     error.value = `Failed to toggle todo: ${e}`;

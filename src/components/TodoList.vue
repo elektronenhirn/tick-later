@@ -55,6 +55,63 @@ const pendingTodos = computed(() =>
 );
 const completedTodos = computed(() => sortedTodos.value.filter(t => t.completed));
 
+// Separate completed todos into "today" and "earlier"
+const completedTodayList = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  return completedTodos.value.filter(t => {
+    if (!t.completed_at) return false;
+    const completedDate = new Date(t.completed_at);
+    return completedDate >= today && completedDate < tomorrow;
+  });
+});
+
+const completedEarlierList = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return completedTodos.value.filter(t => {
+    if (!t.completed_at) return true; // Todos without completed_at go to "earlier"
+    const completedDate = new Date(t.completed_at);
+    return completedDate < today;
+  });
+});
+
+// Count todos completed today
+const todosCompletedToday = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  return props.todos.filter(t => {
+    if (!t.completed || !t.completed_at) return false;
+    const completedDate = new Date(t.completed_at);
+    return completedDate >= today && completedDate < tomorrow;
+  }).length;
+});
+
+// Motivational messages based on completion count
+const motivationalMessage = computed(() => {
+  const count = todosCompletedToday.value;
+  if (count === 0) {
+    return { text: "Start your day strong!", subtext: "Complete your first task to build momentum" };
+  } else if (count === 1) {
+    return { text: "Great start!", subtext: "You've completed 1 task today" };
+  } else if (count < 3) {
+    return { text: "You're on a roll!", subtext: `${count} tasks completed today` };
+  } else if (count < 5) {
+    return { text: "Fantastic progress!", subtext: `${count} tasks done - keep going!` };
+  } else if (count < 10) {
+    return { text: "You're crushing it!", subtext: `${count} tasks completed today!` };
+  } else {
+    return { text: "Unstoppable!", subtext: `${count} tasks completed - amazing work!` };
+  }
+});
+
 const categorizedPendingTodos = computed(() => {
   const currentTime = now.value;
   const in2Hours = new Date(currentTime.getTime() + 2 * 60 * 60 * 1000);
@@ -209,6 +266,33 @@ function handleLaunchWorkspace(todo: Todo) {
 
 <template>
   <div class="todo-list">
+    <!-- Today's Progress Banner -->
+    <div class="daily-progress">
+      <div class="progress-content">
+        <div class="progress-icon">
+          <svg v-if="todosCompletedToday === 0" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <svg v-else-if="todosCompletedToday < 5" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+        <div class="progress-text">
+          <span class="progress-title">{{ motivationalMessage.text }}</span>
+          <span class="progress-subtitle">{{ motivationalMessage.subtext }}</span>
+        </div>
+        <div class="progress-count" v-if="todosCompletedToday > 0">
+          <span class="count-number">{{ todosCompletedToday }}</span>
+          <span class="count-label">today</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Overdue Section -->
     <section class="section section--overdue" v-if="overdueTodos.length > 0">
       <header class="section-header">
@@ -391,17 +475,44 @@ function handleLaunchWorkspace(todo: Todo) {
       </div>
     </section>
 
-    <!-- Completed Section -->
-    <section class="section section--completed" v-if="completedTodos.length > 0">
+    <!-- Completed Today Section -->
+    <section class="section section--completed section--completed-today" v-if="completedTodayList.length > 0">
       <header class="section-header">
-        <div class="section-badge section-badge--completed">DONE</div>
-        <h2 class="section-title">Completed</h2>
-        <span class="section-count">{{ completedTodos.length }} {{ completedTodos.length === 1 ? 'item' : 'items' }}</span>
+        <div class="section-badge section-badge--completed-today">TODAY</div>
+        <h2 class="section-title">Completed Today</h2>
+        <span class="section-count">{{ completedTodayList.length }} {{ completedTodayList.length === 1 ? 'item' : 'items' }}</span>
       </header>
       <div class="section-content">
         <TransitionGroup name="list" tag="div" class="items-grid">
           <TodoItem
-            v-for="todo in completedTodos"
+            v-for="todo in completedTodayList"
+            :key="todo.id"
+            :todo="todo"
+            :is-highlighted="props.highlightedTodoId === todo.id"
+            :is-terminal-busy="props.terminalBusyStates?.get(todo.id)"
+            @toggle-complete="handleToggleComplete"
+            @delete-todo="handleDeleteTodo"
+            @edit-todo="handleEditTodo"
+            @move-todo="handleMoveTodo"
+            @open-terminal="handleOpenTerminal"
+            @switch-desktop="handleSwitchDesktop"
+            @launch-workspace="handleLaunchWorkspace"
+          />
+        </TransitionGroup>
+      </div>
+    </section>
+
+    <!-- Completed Earlier Section -->
+    <section class="section section--completed section--completed-earlier" v-if="completedEarlierList.length > 0">
+      <header class="section-header">
+        <div class="section-badge section-badge--completed">DONE</div>
+        <h2 class="section-title">Completed Earlier</h2>
+        <span class="section-count">{{ completedEarlierList.length }} {{ completedEarlierList.length === 1 ? 'item' : 'items' }}</span>
+      </header>
+      <div class="section-content">
+        <TransitionGroup name="list" tag="div" class="items-grid">
+          <TodoItem
+            v-for="todo in completedEarlierList"
             :key="todo.id"
             :todo="todo"
             :is-highlighted="props.highlightedTodoId === todo.id"
@@ -450,6 +561,93 @@ function handleLaunchWorkspace(todo: Todo) {
   gap: 48px;
 }
 
+/* Daily Progress Banner */
+.daily-progress {
+  background: linear-gradient(135deg, var(--success-bg) 0%, var(--paper-alt) 100%);
+  border: 2px solid var(--success);
+  border-left-width: 6px;
+  padding: 20px 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.daily-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 120px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--success) 100%);
+  opacity: 0.05;
+}
+
+.progress-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.progress-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: var(--paper);
+  border: 2px solid var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--success);
+}
+
+.progress-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.progress-subtitle {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--ink-light);
+}
+
+.progress-count {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--success);
+  color: var(--paper);
+}
+
+.count-number {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.count-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.9;
+}
+
 /* Section Styles */
 .section {
   position: relative;
@@ -477,6 +675,11 @@ function handleLaunchWorkspace(todo: Todo) {
 .section-badge--overdue,
 .section-badge--completed {
   color: var(--ink);
+}
+
+.section-badge--completed-today {
+  color: var(--success);
+  background: var(--success-bg);
 }
 
 .section-title {
@@ -528,7 +731,22 @@ function handleLaunchWorkspace(todo: Todo) {
   opacity: 0.8;
 }
 
-.section--completed .section-content {
+.section--completed-today {
+  opacity: 1;
+}
+
+.section--completed-today .section-content {
+  background: linear-gradient(135deg, var(--success-bg) 0%, var(--paper-alt) 100%);
+  border: 2px solid var(--success);
+  border-left-width: 4px;
+  padding: 20px;
+}
+
+.section--completed-earlier {
+  opacity: 0.6;
+}
+
+.section--completed-earlier .section-content {
   background: var(--paper-alt);
   border: 2px solid var(--rule-line);
   padding: 20px;

@@ -10,6 +10,7 @@ export interface Todo {
   revisit_at: string; // ISO date string
   completed: boolean;
   created_at: string; // ISO date string
+  completed_at?: string; // ISO date string - when the todo was completed
   virtual_desktop?: number; // 0-indexed desktop number
   color?: string; // Custom hatching color (hex)
   workspace_apps?: WorkspaceApp[]; // Applications to launch for this workspace

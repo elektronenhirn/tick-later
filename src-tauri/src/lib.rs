@@ -30,6 +30,8 @@ pub struct Todo {
     pub completed: bool,
     pub created_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub virtual_desktop: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
@@ -53,6 +55,7 @@ impl Todo {
             revisit_at,
             completed: false,
             created_at: Utc::now(),
+            completed_at: None,
             virtual_desktop,
             color,
             workspace_apps,
@@ -158,6 +161,13 @@ fn toggle_todo_completion(app_handle: AppHandle, db_path: State<DatabasePath>, i
 
     todo.completed = !todo.completed;
     let new_status = todo.completed;
+
+    // Set or clear completed_at timestamp
+    if new_status {
+        todo.completed_at = Some(Utc::now());
+    } else {
+        todo.completed_at = None;
+    }
 
     save_todos_to_file(&app_handle, &db_path, &todos)?;
     Ok(new_status)
