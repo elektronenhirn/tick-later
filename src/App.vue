@@ -363,6 +363,7 @@ onUnmounted(() => {
 
 <template>
   <div class="app-layout">
+    <div class="main-panel">
     <main class="app">
       <div class="paper-texture"></div>
       <div class="ruled-lines"></div>
@@ -435,13 +436,6 @@ onUnmounted(() => {
       />
     </div>
 
-    <!-- Floating Compose Button -->
-    <button @click="openTodoForm" class="compose-btn" title="New entry (Ctrl+Shift+N)">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 5v14M5 12h14"/>
-      </svg>
-    </button>
-
     <!-- Add Modal -->
     <Transition name="modal">
       <div v-if="showTodoForm" class="modal-overlay" @mousedown.self="closeTodoForm">
@@ -513,6 +507,14 @@ onUnmounted(() => {
 
     </main>
 
+    <!-- Floating Compose Button -->
+    <button @click="openTodoForm" class="compose-btn" title="New entry (Ctrl+Shift+N)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+    </button>
+    </div>
+
     <!-- Terminal Panel -->
     <TerminalPanel
       :todo-id="activeTerminalTodo?.id ?? null"
@@ -530,17 +532,24 @@ onUnmounted(() => {
   width: 100%;
 }
 
-.app {
+.main-panel {
   flex: 1;
   min-width: 0;
-  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.app {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 0;
   background-color: var(--paper);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='32'%3E%3Crect y='31' width='1' height='1' fill='%23d4cfc5' fill-opacity='0.5'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-attachment: local;
   position: relative;
-  overflow-y: auto;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -752,7 +761,7 @@ onUnmounted(() => {
 }
 
 .compose-btn {
-  position: fixed;
+  position: absolute;
   bottom: 32px;
   right: 32px;
   width: 60px;
