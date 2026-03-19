@@ -69,6 +69,35 @@ function createTerminalInstance(todoId: string): TerminalInstance {
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(webLinksAddon);
 
+  // Handle clipboard copy (Ctrl+Shift+C or Ctrl+C when text is selected)
+  terminal.attachCustomKeyEventHandler((event) => {
+    if (event.type === "keydown" && event.ctrlKey && event.key === "c") {
+      const selection = terminal.getSelection();
+      if (selection) {
+        navigator.clipboard.writeText(selection).catch(console.error);
+        return false; // Prevent default terminal handling
+      }
+    }
+    // Ctrl+Shift+C always copies
+    if (event.type === "keydown" && event.ctrlKey && event.shiftKey && event.key === "C") {
+      const selection = terminal.getSelection();
+      if (selection) {
+        navigator.clipboard.writeText(selection).catch(console.error);
+        return false;
+      }
+    }
+    // Ctrl+Shift+V to paste
+    if (event.type === "keydown" && event.ctrlKey && event.shiftKey && event.key === "V") {
+      navigator.clipboard.readText().then((text) => {
+        if (text && activeSessions.has(todoId)) {
+          invoke("write_to_terminal", { todoId, data: text }).catch(console.error);
+        }
+      }).catch(console.error);
+      return false;
+    }
+    return true;
+  });
+
   // Create a container element for this terminal
   const element = document.createElement("div");
   element.className = "terminal-instance";
