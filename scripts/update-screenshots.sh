@@ -3,7 +3,8 @@
 #
 # Updates screenshot-from-demo.json.png and screenshot-with-shadow.png by:
 #   1. Refreshing timestamps in demo.json relative to today
-#   2. Launching the app with demo.json as the database
+#   2. Launching the app with demo.json as the database (isolated HOME —
+#      the production database is never touched)
 #   3. Taking a screenshot of the window
 #   4. Generating a drop-shadow version
 #
@@ -12,6 +13,8 @@
 #   - xwininfo                      — to detect when the window is ready
 #   - curl                          — to wait for the Vite dev server
 #   - Node.js + npm                 — for the dev server and timestamp script
+#   - Xvfb                         — virtual framebuffer (any display size)
+#   - xdotool                      — window geometry helpers
 #   - A pre-built debug binary at src-tauri/target/debug/tick-later
 #     (run `cargo build` in src-tauri/ if not present)
 #
@@ -26,8 +29,6 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 
 APP_BINARY="$REPO_DIR/src-tauri/target/debug/tick-later"
 DEMO_JSON="$REPO_DIR/demo.json"
-DB_PATH="$HOME/.local/share/net.elektronenhirn.tick-later/todos.json"
-BACKUP_PATH="$HOME/.local/share/net.elektronenhirn.tick-later/todos.json.bak"
 SCREENSHOT_OUT="$REPO_DIR/docs/screenshot-from-demo.json.png"
 SHADOW_OUT="$REPO_DIR/docs/screenshot-with-shadow.png"
 
@@ -36,9 +37,15 @@ DEV_SERVER_PORT=1420
 WINDOW_WAIT_TIMEOUT=30  # seconds to wait for window to appear
 RENDER_WAIT=3           # seconds to wait after window appears before screenshotting
 
+# Virtual framebuffer settings — allows a taller window than the physical display
+VDISPLAY=:99
+VSCREEN_W=1300
+VSCREEN_H=2000
+
 APP_PID=""
 DEV_SERVER_PID=""
 XVFB_PID=""
+TEMP_HOME=""
 
 cleanup() {
   if [ -n "$APP_PID" ] && kill -0 "$APP_PID" 2>/dev/null; then
@@ -53,9 +60,8 @@ cleanup() {
     echo "Killing Xvfb (PID $XVFB_PID)..."
     kill "$XVFB_PID" 2>/dev/null || true
   fi
-  if [ -f "$BACKUP_PATH" ]; then
-    echo "Restoring database backup..."
-    mv "$BACKUP_PATH" "$DB_PATH"
+  if [ -n "$TEMP_HOME" ] && [ -d "$TEMP_HOME" ]; then
+    rm -rf "$TEMP_HOME"
   fi
 }
 trap cleanup EXIT
@@ -81,26 +87,18 @@ if [ -z "${DISPLAY:-}" ]; then
   exit 1
 fi
 
-# Virtual framebuffer settings — allows a taller window than the physical display
-VDISPLAY=:99
-VSCREEN_W=1300
-VSCREEN_H=2000
-
 # ── 2. Update demo.json timestamps ────────────────────────────────────────
 echo "Updating demo.json timestamps..."
 node "$SCRIPT_DIR/update-demo-timestamps.js"
 
-# ── 3. Backup real database and install demo.json ─────────────────────────
-DB_DIR="$(dirname "$DB_PATH")"
+# ── 3. Set up isolated HOME with demo database ────────────────────────────
+# The app is launched with HOME pointing at a temp directory so the production
+# database is never read or written.
+TEMP_HOME="$(mktemp -d)"
+DB_DIR="$TEMP_HOME/.local/share/net.elektronenhirn.tick-later"
 mkdir -p "$DB_DIR"
-
-if [ -f "$DB_PATH" ]; then
-  echo "Backing up existing database to $BACKUP_PATH..."
-  cp "$DB_PATH" "$BACKUP_PATH"
-fi
-
-echo "Installing demo.json as app database..."
-cp "$DEMO_JSON" "$DB_PATH"
+cp "$DEMO_JSON" "$DB_DIR/todos.json"
+echo "Using isolated HOME: $TEMP_HOME"
 
 # ── 4. Start virtual framebuffer ─────────────────────────────────────────
 # Kill any stale Xvfb on our display number before starting a fresh one.
@@ -134,9 +132,9 @@ while ! curl -sf "http://localhost:$DEV_SERVER_PORT" &>/dev/null; do
 done
 echo "Dev server is ready."
 
-# ── 6. Launch the app on the virtual display ──────────────────────────────
+# ── 6. Launch the app on the virtual display with isolated HOME ───────────
 echo "Launching $APP_BINARY on $VDISPLAY..."
-DISPLAY="$VDISPLAY" "$APP_BINARY" &>/dev/null &
+DISPLAY="$VDISPLAY" HOME="$TEMP_HOME" "$APP_BINARY" &>/dev/null &
 APP_PID=$!
 
 # ── 7. Wait for the window to appear ──────────────────────────────────────
