@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tick Later — a personal journal for tasks</title>
+  <meta name="description" content="A minimal, notebook-style desktop app for managing tasks with time-based scheduling. Free, open source, local storage only.">
+  <meta property="og:title" content="Tick Later — a personal journal for tasks">
+  <meta property="og:description" content="Stop fighting your task manager. Tick Later organizes your day into time buckets — not endless lists.">
+  <meta property="og:image" content="../screenshot-with-shadow.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Variables ────────────────────────────────────────────────────────── */
+    :root {
+      --paper:       #faf8f3;
+      --paper-alt:   #f5f2ea;
+      --ink:         #1a1614;
+      --ink-light:   #524d48;
+      --ink-shadow:  rgba(26, 22, 20, 0.22);
+      --rule-line:   #d4cfc5;
+      --accent:      #8b4513;
+      --urgent:      #b91c1c;
+      --soon:        #c2410c;
+      --tomorrow:    #1d4ed8;
+      --future:      #047857;
+      --success:     #15803d;
+
+      --font-display: 'Libre Baskerville', Georgia, serif;
+      --font-body:    'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono:    'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+      --ruled: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='32'%3E%3Crect y='31' width='1' height='1' fill='%23d4cfc5' fill-opacity='0.5'/%3E%3C/svg%3E");
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper:      #1c1917;
+        --paper-alt:  #292524;
+        --ink:        #fafaf9;
+        --ink-light:  #c8c4c0;
+        --ink-shadow: rgba(0, 0, 0, 0.45);
+        --rule-line:  #44403c;
+        --accent:     #d97706;
+        --urgent:     #ef4444;
+        --soon:       #f97316;
+        --tomorrow:   #60a5fa;
+        --future:     #34d399;
+        --success:    #4ade80;
+        --ruled: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='32'%3E%3Crect y='31' width='1' height='1' fill='%2344403c' fill-opacity='0.5'/%3E%3C/svg%3E");
+      }
+    }
+
+    /* ── Reset ────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: var(--font-body);
+      line-height: 1.65;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image: var(--ruled);
+      background-repeat: repeat;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { display: block; max-width: 100%; }
+    a { color: inherit; }
+
+    /* ── Shared ────────────────────────────────────────────────────────────── */
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      border: 2px solid var(--ink);
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translate(-2px,-2px); box-shadow: 4px 4px 0 var(--ink-shadow); }
+    .btn:active { transform: translate(0,0); box-shadow: none; }
+    .btn-solid { background: var(--ink); color: var(--paper); }
+    .btn-ghost { background: transparent; color: var(--ink); }
+    .btn-accent {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-accent:hover { box-shadow: 4px 4px 0 rgba(139,69,19,.35); }
+
+    .section-eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+    .section-eyebrow::after {
+      content: '';
+      width: 48px;
+      height: 1px;
+      background: var(--rule-line);
+    }
+
+    .section-heading {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+      color: var(--ink);
+      margin-bottom: 14px;
+    }
+
+    .section-sub {
+      font-size: 1.05rem;
+      color: var(--ink-light);
+      max-width: 580px;
+      line-height: 1.7;
+    }
+
+    /* ── Scroll-reveal ────────────────────────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* ── Nav ────────────────────────────────────────────────────────────────── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: var(--paper);
+      background-image: var(--ruled);
+      border-bottom: 2px solid var(--ink);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: -0.03em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+
+    /* ── Hero ────────────────────────────────────────────────────────────── */
+    .hero {
+      padding: 80px 2rem 72px;
+      max-width: 1160px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 64px;
+      align-items: start;
+    }
+
+    .hero-copy { padding-top: 8px; }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      border: 2px solid var(--ink);
+      padding: 4px 10px;
+      margin-bottom: 28px;
+      transform: rotate(-0.6deg);
+      animation: badge-in 0.6s 0.1s both;
+    }
+    .badge-pulse {
+      width: 6px; height: 6px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    @keyframes badge-in {
+      from { opacity: 0; transform: rotate(-0.6deg) translateY(10px); }
+      to   { opacity: 1; transform: rotate(-0.6deg) translateY(0); }
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.8rem, 5.5vw, 4.2rem);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      color: var(--ink);
+      margin-bottom: 22px;
+      animation: hero-title-in 0.7s 0.2s both;
+    }
+    .hero-title em { font-style: italic; color: var(--accent); }
+    @keyframes hero-title-in {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .hero-lead {
+      font-size: 1.15rem;
+      color: var(--ink-light);
+      line-height: 1.7;
+      margin-bottom: 36px;
+      max-width: 440px;
+      animation: hero-title-in 0.7s 0.35s both;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 36px;
+      animation: hero-title-in 0.7s 0.45s both;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      animation: hero-title-in 0.7s 0.55s both;
+    }
+    .hero-pill {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      color: var(--ink-light);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .hero-pill::before {
+      content: '';
+      width: 14px; height: 1px;
+      background: var(--rule-line);
+    }
+
+    /* Screenshot side */
+    .hero-visual {
+      position: relative;
+      animation: visual-in 0.8s 0.3s both;
+    }
+    @keyframes visual-in {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: none; }
+    }
+    .hero-visual img {
+      width: 100%;
+      transition: transform 0.4s ease;
+    }
+    .hero-visual:hover img { transform: translateY(-4px); }
+
+    /* Floating time-bucket tags */
+    .bucket-tags {
+      position: absolute;
+      top: 0;
+      right: -12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: flex-end;
+      transform: translateY(-50%);
+    }
+    .bucket-tag {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border: 2px solid currentColor;
+      background: var(--paper);
+      white-space: nowrap;
+    }
+    .bucket-tag--urgent   { color: var(--urgent);   transform: rotate( 0.4deg); }
+    .bucket-tag--soon     { color: var(--soon);     transform: rotate(-0.6deg); }
+    .bucket-tag--tomorrow { color: var(--tomorrow); transform: rotate( 0.8deg); }
+    .bucket-tag--future   { color: var(--future);   transform: rotate(-0.3deg); }
+
+    /* ── Divider ─────────────────────────────────────────────────────────── */
+    .rule { border: none; border-top: 2px solid var(--rule-line); }
+    .rule-dark { border: none; border-top: 2px solid var(--ink); }
+
+    /* ── Features ────────────────────────────────────────────────────────── */
+    .features-section {
+      padding: 80px 2rem;
+      background: var(--paper-alt);
+      background-image: var(--ruled);
+      border-top: 2px solid var(--rule-line);
+      border-bottom: 2px solid var(--rule-line);
+    }
+    .features-header { margin-bottom: 48px; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .feat-card {
+      display: flex;
+      overflow: hidden;
+      background: var(--paper);
+      border: 2px solid var(--rule-line);
+      transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+    }
+    .feat-card:hover {
+      transform: translate(-3px, -3px);
+      box-shadow: 5px 5px 0 var(--ink-shadow);
+      border-color: var(--ink);
+    }
+
+    /* Colored accent strip with hatching */
+    .feat-stripe {
+      width: 9px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .feat-stripe::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        -45deg,
+        transparent, transparent 3px,
+        rgba(255,255,255,0.28) 3px, rgba(255,255,255,0.28) 4px
+      );
+    }
+    .feat-stripe--urgent   { background: var(--urgent); }
+    .feat-stripe--soon     { background: var(--soon); }
+    .feat-stripe--tomorrow { background: var(--tomorrow); }
+    .feat-stripe--future   { background: var(--future); }
+    .feat-stripe--accent   { background: var(--accent); }
+    .feat-stripe--success  { background: var(--success); }
+
+    .feat-body { padding: 24px 26px; flex: 1; }
+
+    .feat-icon {
+      width: 32px; height: 32px;
+      color: var(--ink-light);
+      margin-bottom: 10px;
+    }
+    .feat-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      margin-bottom: 7px;
+    }
+    .feat-desc {
+      font-size: 0.92rem;
+      color: var(--ink-light);
+      line-height: 1.6;
+    }
+    .feat-desc em { font-style: italic; color: var(--ink); }
+
+    /* ── Download ────────────────────────────────────────────────────────── */
+    .download-section { padding: 80px 2rem; }
+    .download-header { margin-bottom: 48px; }
+
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .platform-card {
+      display: block;
+      text-decoration: none;
+      background: var(--paper-alt);
+      border: 2px solid var(--rule-line);
+      padding: 36px 24px 28px;
+      text-align: center;
+      transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+    }
+    .platform-card:hover {
+      transform: translate(-3px,-3px);
+      box-shadow: 5px 5px 0 var(--ink-shadow);
+      border-color: var(--ink);
+    }
+    .platform-icon {
+      width: 44px; height: 44px;
+      margin: 0 auto 16px;
+      color: var(--ink);
+    }
+    .platform-name {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+    .platform-formats {
+      font-family: var(--font-mono);
+      font-size: 0.67rem;
+      color: var(--ink-light);
+      letter-spacing: 0.07em;
+    }
+
+    /* macOS tip */
+    .macos-tip {
+      border: 2px solid var(--rule-line);
+      background: var(--paper-alt);
+      overflow: hidden;
+    }
+    .macos-tip summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      color: var(--ink-light);
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      transition: background 0.1s ease;
+    }
+    .macos-tip summary:hover { background: var(--paper); }
+    .macos-tip summary::-webkit-details-marker { display: none; }
+    .tip-arrow {
+      display: inline-block;
+      font-size: 0.55rem;
+      transition: transform 0.2s ease;
+      color: var(--soon);
+    }
+    .macos-tip[open] .tip-arrow { transform: rotate(90deg); }
+    .tip-body {
+      padding: 0 20px 20px 20px;
+      font-size: 0.9rem;
+      color: var(--ink-light);
+      line-height: 1.65;
+      border-top: 1px dashed var(--rule-line);
+      padding-top: 16px;
+    }
+    .tip-body p + p { margin-top: 8px; }
+    .tip-code {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      background: var(--paper);
+      border: 1px solid var(--rule-line);
+      padding: 10px 16px;
+      margin: 12px 0;
+      color: var(--ink);
+      overflow-x: auto;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    .footer {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 28px 2rem;
+    }
+    .footer-inner {
+      max-width: 1160px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--paper);
+    }
+    .footer-mark {
+      width: 32px; height: 32px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: -0.03em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .footer-name {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .footer-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: rgba(250,248,243,0.55);
+    }
+    .footer-meta a {
+      color: rgba(250,248,243,0.75);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .footer-meta a:hover { color: var(--paper); }
+    .footer-sep { opacity: 0.35; }
+
+    /* ── Responsive ─────────────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .hero { grid-template-columns: 1fr; gap: 48px; }
+      .bucket-tags { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .platform-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .logo-text { display: none; }
+      .hero { padding: 56px 1.25rem 56px; }
+      .btn { padding: 9px 16px; font-size: 0.7rem; }
+      .hero-ctas { flex-direction: column; align-items: flex-start; }
+      .features-section, .download-section { padding: 56px 1.25rem; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────────────────────── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="logo-mark">TL</div>
+      <span class="logo-text">Tick Later</span>
+    </a>
+    <div class="nav-actions">
+      <a href="https://github.com/elektronenhirn/tick-later" class="btn btn-ghost" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+      <a href="#download" class="btn btn-solid">Download Free</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-copy">
+    <div class="hero-badge">
+      <span class="badge-pulse"></span>
+      v0.2.4 &nbsp;·&nbsp; Free &amp; Open Source
+    </div>
+
+    <h1 class="hero-title">
+      A personal <em>journal</em><br>for tasks.
+    </h1>
+
+    <p class="hero-lead">
+      Stop fighting your task manager. Tick Later organizes your day into
+      time buckets — not endless lists. Know exactly what needs attention
+      <em>now</em>, what can wait, and what belongs to another day.
+    </p>
+
+    <div class="hero-ctas">
+      <a href="#download" class="btn btn-solid" style="padding:12px 28px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download Free
+      </a>
+      <a href="https://github.com/elektronenhirn/tick-later" class="btn btn-ghost" style="padding:12px 28px" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+        View Source
+      </a>
+    </div>
+
+    <div class="hero-pills">
+      <span class="hero-pill">No account required</span>
+      <span class="hero-pill">100% local storage</span>
+      <span class="hero-pill">MIT License</span>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="bucket-tags">
+      <span class="bucket-tag bucket-tag--urgent">Next 2 Hours</span>
+      <span class="bucket-tag bucket-tag--soon">2–4 Hours</span>
+      <span class="bucket-tag bucket-tag--tomorrow">Tomorrow &amp; Later</span>
+      <span class="bucket-tag bucket-tag--future">Next Week +</span>
+    </div>
+    <img src="../screenshot-with-shadow.png"
+         alt="Tick Later showing tasks organized into Next 2 Hours, 2–4 Hours, Tomorrow & Later, and Next Week+ buckets"
+         loading="eager">
+  </div>
+</div>
+
+<hr class="rule-dark">
+
+<!-- ── Features ─────────────────────────────────────────────────────────── -->
+<section class="features-section">
+  <div class="wrap">
+    <div class="features-header reveal">
+      <p class="section-eyebrow">Features</p>
+      <h2 class="section-heading">Built for how you actually think.</h2>
+      <p class="section-sub">Not another backlog you'll never revisit. Just what matters, organized by when it matters.</p>
+    </div>
+
+    <div class="features-grid">
+
+      <div class="feat-card reveal">
+        <div class="feat-stripe feat-stripe--urgent"></div>
+        <div class="feat-body">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <h3 class="feat-title">Time-aware scheduling</h3>
+          <p class="feat-desc">Tasks auto-sort into four buckets — <em>Next 2 Hours</em>, <em>2–4 Hours</em>, <em>Tomorrow &amp; Later</em>, <em>Next Week+</em>. Your view updates live as deadlines approach.</p>
+        </div>
+      </div>
+
+      <div class="feat-card reveal">
+        <div class="feat-stripe feat-stripe--soon"></div>
+        <div class="feat-body">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="5 9 2 12 5 15"/>
+            <polyline points="9 5 12 2 15 5"/>
+            <polyline points="15 19 12 22 9 19"/>
+            <polyline points="19 9 22 12 19 15"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <line x1="12" y1="2" x2="12" y2="22"/>
+          </svg>
+          <h3 class="feat-title">Drag &amp; drop rescheduling</h3>
+          <p class="feat-desc">Reschedule any task by dragging it between time buckets. Push to <em>Next Week+</em> for breathing room, or pull into <em>Next 2 Hours</em> to make it urgent — instantly.</p>
+        </div>
+      </div>
+
+      <div class="feat-card reveal">
+        <div class="feat-stripe feat-stripe--tomorrow"></div>
+        <div class="feat-body">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+          <h3 class="feat-title">Integrated terminal</h3>
+          <p class="feat-desc">Open a terminal session for any task with one click. Your task description stays visible while you work — perfect for developer workflows where context is everything.</p>
+        </div>
+      </div>
+
+      <div class="feat-card reveal">
+        <div class="feat-stripe feat-stripe--future"></div>
+        <div class="feat-body">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="3" width="20" height="14"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+            <line x1="6" y1="10" x2="6" y2="10.01"/>
+            <line x1="10" y1="8" x2="18" y2="8"/>
+            <line x1="10" y1="12" x2="18" y2="12"/>
+          </svg>
+          <h3 class="feat-title">Virtual desktop pinning</h3>
+          <p class="feat-desc">Associate tasks with virtual desktops on Linux and switch to them with a single click. Your task context follows you across workspaces — no more hunting for where you were.</p>
+        </div>
+      </div>
+
+      <div class="feat-card reveal">
+        <div class="feat-stripe feat-stripe--accent"></div>
+        <div class="feat-body">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+          <h3 class="feat-title">Notebook aesthetic</h3>
+          <p class="feat-desc">Warm cream paper, ruled lines, ink-style typography. No flashy animations, no notification red dots — just your tasks on a calm page. <em>Designed to disappear into your workflow.</em></p>
+        </div>
+      </div>
+
+      <div class="feat-card reveal">
+        <div class="feat-stripe feat-stripe--success"></div>
+        <div class="feat-body">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="11" width="18" height="11"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <h3 class="feat-title">100% local storage</h3>
+          <p class="feat-desc">Your tasks live in a plain JSON file on your machine. No account, no cloud, no subscription. <em>Your data is yours</em> — readable, portable, and private. Always.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ── Download ──────────────────────────────────────────────────────────── -->
+<section class="download-section" id="download">
+  <div class="wrap">
+    <div class="download-header reveal">
+      <p class="section-eyebrow">Download</p>
+      <h2 class="section-heading">Free for every platform.</h2>
+      <p class="section-sub">Grab the latest release for your OS. No account, no installer sign-in, no strings attached.</p>
+    </div>
+
+    <div class="platform-grid">
+
+      <!-- Linux -->
+      <a class="platform-card reveal" href="https://github.com/elektronenhirn/tick-later/releases" target="_blank" rel="noopener">
+        <svg class="platform-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <ellipse cx="24" cy="15" rx="8" ry="11"/>
+          <circle cx="21" cy="13" r="1.8" fill="currentColor" stroke="none"/>
+          <circle cx="27" cy="13" r="1.8" fill="currentColor" stroke="none"/>
+          <path d="M16 26 c-3 2-5 7-3 12 h22 c2-5 0-10-3-12"/>
+          <path d="M15.5 25.5 c-2-4-3.5-8-3.5-11 0-6.6 5.4-12 12-12s12 5.4 12 12c0 3-1.5 7-3.5 11"/>
+          <path d="M19 36 h10"/>
+          <path d="M13 42 c-2-1-3-3-2-4"/>
+          <path d="M35 42 c2-1 3-3 2-4"/>
+        </svg>
+        <div class="platform-name">Linux</div>
+        <div class="platform-formats">.deb &nbsp;·&nbsp; .AppImage &nbsp;·&nbsp; .rpm</div>
+      </a>
+
+      <!-- macOS -->
+      <a class="platform-card reveal" href="https://github.com/elektronenhirn/tick-later/releases" target="_blank" rel="noopener">
+        <svg class="platform-icon" viewBox="0 0 48 48" fill="currentColor">
+          <path d="M33.8 26.2c-.05-4.74 3.87-7.01 4.04-7.12-2.2-3.22-5.62-3.66-6.84-3.71-2.91-.29-5.69 1.72-7.17 1.72-1.48 0-3.77-1.67-6.2-1.63-3.19.05-6.13 1.86-7.77 4.71-3.31 5.74-.85 14.26 2.38 18.92 1.58 2.29 3.45 4.85 5.91 4.76 2.37-.09 3.27-1.53 6.14-1.53 2.87 0 3.68 1.53 6.2 1.49 2.56-.05 4.18-2.33 5.74-4.62 1.81-2.64 2.56-5.21 2.6-5.34-.06-.02-4.98-1.9-5.03-7.65zM29.1 12.54c1.31-1.58 2.2-3.78 1.96-5.96-1.89.08-4.17 1.25-5.52 2.83-1.21 1.41-2.28 3.66-1.99 5.81 2.1.16 4.25-1.07 5.55-2.68z"/>
+        </svg>
+        <div class="platform-name">macOS</div>
+        <div class="platform-formats">Apple Silicon &nbsp;·&nbsp; Intel (.dmg)</div>
+      </a>
+
+      <!-- Windows -->
+      <a class="platform-card reveal" href="https://github.com/elektronenhirn/tick-later/releases" target="_blank" rel="noopener">
+        <svg class="platform-icon" viewBox="0 0 48 48" fill="currentColor">
+          <path d="M4 11.5 L21.5 9 L21.5 22 L4 22 Z"/>
+          <path d="M4 26 L21.5 26 L21.5 39 L4 36.5 Z"/>
+          <path d="M23.5 8.5 L44 5.5 L44 22 L23.5 22 Z"/>
+          <path d="M23.5 26 L44 26 L44 42.5 L23.5 39.5 Z"/>
+        </svg>
+        <div class="platform-name">Windows</div>
+        <div class="platform-formats">.msi &nbsp;·&nbsp; .exe</div>
+      </a>
+
+    </div>
+
+    <!-- macOS tip -->
+    <details class="macos-tip">
+      <summary>
+        <span class="tip-arrow">▶</span>
+        <span class="mono" style="font-size:0.68rem; letter-spacing:0.08em;">macOS: "App is damaged" warning?</span>
+      </summary>
+      <div class="tip-body">
+        <p>macOS may show <em>"tick-later is damaged and can't be opened"</em> because the app isn't signed with an Apple Developer certificate. To fix it, open Terminal and run:</p>
+        <code class="tip-code">xattr -cr /Applications/tick-later.app</code>
+        <p>Or if you haven't moved it to Applications yet:</p>
+        <code class="tip-code">xattr -cr ~/Downloads/tick-later.app</code>
+        <p>This removes the macOS quarantine flag added to downloaded files.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="footer-inner">
+    <a href="#" class="footer-logo">
+      <div class="footer-mark">TL</div>
+      <span class="footer-name">Tick Later</span>
+    </a>
+    <div class="footer-meta">
+      <span>Made with ❤️ in Schrobenhausen</span>
+      <span class="footer-sep">·</span>
+      <a href="https://github.com/elektronenhirn/tick-later/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      <span class="footer-sep">·</span>
+      <a href="https://github.com/elektronenhirn/tick-later" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Scroll-reveal with staggered delay for grid children
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const delay = parseInt(entry.target.dataset.delay || '0', 10);
+        setTimeout(() => entry.target.classList.add('in'), delay);
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // Stagger feature cards
+  document.querySelectorAll('.feat-card.reveal').forEach((el, i) => {
+    el.dataset.delay = i * 70;
+    io.observe(el);
+  });
+
+  // Stagger platform cards
+  document.querySelectorAll('.platform-card.reveal').forEach((el, i) => {
+    el.dataset.delay = i * 90;
+    io.observe(el);
+  });
+</script>
+
+</body>
+</html>
