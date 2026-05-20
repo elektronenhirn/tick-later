@@ -69,7 +69,7 @@ if [ ! -f "$APP_BINARY" ]; then
   exit 1
 fi
 
-for cmd in node npm curl import convert xwininfo Xvfb; do
+for cmd in node npm curl import convert xwininfo Xvfb xdotool; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: '$cmd' is not installed"
     exit 1
@@ -103,6 +103,14 @@ echo "Installing demo.json as app database..."
 cp "$DEMO_JSON" "$DB_PATH"
 
 # ── 4. Start virtual framebuffer ─────────────────────────────────────────
+# Kill any stale Xvfb on our display number before starting a fresh one.
+STALE_XVFB=$(pgrep -f "Xvfb ${VDISPLAY} " || true)
+if [ -n "$STALE_XVFB" ]; then
+  echo "Killing stale Xvfb on $VDISPLAY (PID $STALE_XVFB)..."
+  kill "$STALE_XVFB" 2>/dev/null || true
+  sleep 0.5
+fi
+
 echo "Starting Xvfb on $VDISPLAY (${VSCREEN_W}x${VSCREEN_H})..."
 Xvfb "$VDISPLAY" -screen 0 "${VSCREEN_W}x${VSCREEN_H}x24" &>/dev/null &
 XVFB_PID=$!
@@ -156,11 +164,20 @@ if [ -z "$WIN_ID" ]; then
   exit 1
 fi
 
-# Bring window to front and wait a moment before capturing
-DISPLAY="$VDISPLAY" xwininfo -id "$WIN_ID" -stats &>/dev/null
-sleep 0.5
+# `import -window WIN_ID` only captures WebKit's painted area (content height),
+# not the full X11 window. Capture the full virtual display instead and crop to
+# the window's position + actual geometry so we always get the complete window.
+WIN_INFO=$(DISPLAY="$VDISPLAY" xwininfo -id "$WIN_ID" 2>/dev/null)
+WIN_X=$(echo "$WIN_INFO" | grep "Absolute upper-left X:" | awk '{print $NF}')
+WIN_Y=$(echo "$WIN_INFO" | grep "Absolute upper-left Y:" | awk '{print $NF}')
+WIN_W=$(echo "$WIN_INFO" | grep "  Width:"  | awk '{print $NF}')
+WIN_H=$(echo "$WIN_INFO" | grep "  Height:" | awk '{print $NF}')
+echo "Window geometry: ${WIN_W}x${WIN_H}+${WIN_X}+${WIN_Y}"
 
-DISPLAY="$VDISPLAY" import -window "$WIN_ID" "$SCREENSHOT_OUT"
+DISPLAY="$VDISPLAY" import -window root /tmp/tick_later_display.png
+convert /tmp/tick_later_display.png \
+  -crop "${WIN_W}x${WIN_H}+${WIN_X}+${WIN_Y}" +repage \
+  "$SCREENSHOT_OUT"
 echo "Screenshot saved: $SCREENSHOT_OUT"
 
 # ── 9. Generate drop-shadow version ──────────────────────────────────────

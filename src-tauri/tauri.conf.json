@@ -16,7 +16,8 @@
         "title": "Tick Later",
         "width": 1200,
         "height": 1700,
-        "center": true
+        "x": 0,
+        "y": 0
       }
     ],
     "security": {

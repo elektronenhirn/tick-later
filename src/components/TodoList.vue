@@ -115,7 +115,6 @@ const motivationalMessage = computed(() => {
 const categorizedPendingTodos = computed(() => {
   const currentTime = now.value;
   const in2Hours = new Date(currentTime.getTime() + 2 * 60 * 60 * 1000);
-  const in4Hours = new Date(currentTime.getTime() + 4 * 60 * 60 * 1000);
   const tomorrow = new Date(currentTime);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
@@ -131,7 +130,7 @@ const categorizedPendingTodos = computed(() => {
 
   const categories = {
     next2Hours: [] as Todo[],
-    next2To4Hours: [] as Todo[],
+    today: [] as Todo[],
     tomorrow: [] as Todo[],
     nextWeek: [] as Todo[]
   };
@@ -141,8 +140,8 @@ const categorizedPendingTodos = computed(() => {
 
     if (revisitDate <= in2Hours) {
       categories.next2Hours.push(todo);
-    } else if (revisitDate <= in4Hours) {
-      categories.next2To4Hours.push(todo);
+    } else if (revisitDate < tomorrow) {
+      categories.today.push(todo);
     } else if (revisitDate < nextWeek) {
       categories.tomorrow.push(todo);
     } else {
@@ -177,9 +176,11 @@ function getTimestampForSection(section: string): string {
       const in1Hour = new Date(now.getTime() + 1 * 60 * 60 * 1000);
       return in1Hour.toISOString();
 
-    case 'next2To4Hours':
-      const in3Hours = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-      return in3Hours.toISOString();
+    case 'today':
+      const todayAt5pm = new Date(now);
+      todayAt5pm.setHours(17, 0, 0, 0);
+      if (todayAt5pm <= now) todayAt5pm.setHours(23, 0, 0, 0);
+      return todayAt5pm.toISOString();
 
     case 'tomorrow':
       const tomorrow = new Date(now);
@@ -368,21 +369,21 @@ function handleLaunchWorkspace(todo: Todo) {
           </div>
         </div>
 
-        <!-- Soon: 2-4 Hours -->
+        <!-- Today (after next 2 hours, before midnight) -->
         <div
           class="time-cell time-cell--soon drop-zone"
-          @drop="handleDrop($event, 'next2To4Hours')"
+          @drop="handleDrop($event, 'today')"
           @dragover="handleDragOver"
           @dragleave="handleDragLeave"
         >
           <header class="cell-header">
-            <span class="cell-label">2-4 Hours</span>
-            <span class="cell-count" v-if="categorizedPendingTodos.next2To4Hours.length">{{ categorizedPendingTodos.next2To4Hours.length }}</span>
+            <span class="cell-label">Today</span>
+            <span class="cell-count" v-if="categorizedPendingTodos.today.length">{{ categorizedPendingTodos.today.length }}</span>
           </header>
           <div class="cell-content">
-            <TransitionGroup name="list" tag="div" class="items-column" v-if="categorizedPendingTodos.next2To4Hours.length">
+            <TransitionGroup name="list" tag="div" class="items-column" v-if="categorizedPendingTodos.today.length">
               <TodoItem
-                v-for="todo in categorizedPendingTodos.next2To4Hours"
+                v-for="todo in categorizedPendingTodos.today"
                 :key="todo.id"
                 :todo="todo"
                 :is-highlighted="props.highlightedTodoId === todo.id"
@@ -397,8 +398,8 @@ function handleLaunchWorkspace(todo: Todo) {
               />
             </TransitionGroup>
             <div v-else class="empty-cell">
-              <span class="empty-text">Clear ahead</span>
-              <span class="drop-hint">Drop to schedule for 3hrs from now</span>
+              <span class="empty-text">Nothing more today</span>
+              <span class="drop-hint">Drop to schedule for today at 5 PM</span>
             </div>
           </div>
         </div>

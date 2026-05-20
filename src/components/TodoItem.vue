@@ -32,7 +32,7 @@ function toggleDescriptionExpanded() {
 
 const menuOptions = [
   { label: "Next 2 Hours", section: "next2Hours" },
-  { label: "2-4 Hours", section: "next2To4Hours" },
+  { label: "Today", section: "today" },
   { label: "Tomorrow & Later", section: "tomorrow" },
   { label: "Next Week +", section: "nextWeek" },
 ];
