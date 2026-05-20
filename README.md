@@ -1,6 +1,6 @@
 # Tick Later
 
-![Screenshot of Tick Later application](screenshot-with-shadow.png)
+![Screenshot of Tick Later application](docs/screenshot-with-shadow.png)
 
 A minimal, notebook-style desktop app for managing tasks with time-based scheduling.
 

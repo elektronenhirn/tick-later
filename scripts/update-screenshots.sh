@@ -28,8 +28,8 @@ APP_BINARY="$REPO_DIR/src-tauri/target/debug/tick-later"
 DEMO_JSON="$REPO_DIR/demo.json"
 DB_PATH="$HOME/.local/share/net.elektronenhirn.tick-later/todos.json"
 BACKUP_PATH="$HOME/.local/share/net.elektronenhirn.tick-later/todos.json.bak"
-SCREENSHOT_OUT="$REPO_DIR/screenshot-from-demo.json.png"
-SHADOW_OUT="$REPO_DIR/screenshot-with-shadow.png"
+SCREENSHOT_OUT="$REPO_DIR/docs/screenshot-from-demo.json.png"
+SHADOW_OUT="$REPO_DIR/docs/screenshot-with-shadow.png"
 
 WINDOW_TITLE="Tick Later"
 DEV_SERVER_PORT=1420
