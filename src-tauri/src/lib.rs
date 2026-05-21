@@ -9,6 +9,8 @@ use tauri::{AppHandle, Manager, State};
 mod terminal;
 use terminal::{TerminalManager, TerminalState};
 
+mod github_sync;
+
 #[cfg(target_os = "linux")]
 mod virtual_desktop;
 
@@ -63,8 +65,53 @@ impl Todo {
     }
 }
 
+// ── GitHub sync config (persisted to settings.json) ───────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubSyncConfig {
+    pub enabled: bool,
+    pub token: String,
+    pub repo: String,
+    #[serde(default = "default_file_path")]
+    pub file_path: String,
+    #[serde(default = "default_poll_interval")]
+    pub poll_interval_secs: u64,
+}
+
+fn default_file_path() -> String { "todos.json".to_string() }
+fn default_poll_interval() -> u64 { 120 }
+
+impl Default for GitHubSyncConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            token: String::new(),
+            repo: String::new(),
+            file_path: default_file_path(),
+            poll_interval_secs: default_poll_interval(),
+        }
+    }
+}
+
 // State to track the current database file path
 pub struct DatabasePath(pub Mutex<Option<PathBuf>>);
+
+// State for GitHub sync ETag cache, last-known remote SHA, and dirty flag
+pub struct GitHubSyncState {
+    pub etag: Mutex<Option<String>>,
+    pub remote_sha: Mutex<String>,  // blob SHA of the file as last fetched/pushed
+    pub local_dirty: Mutex<bool>,   // true when local todos changed since last push
+}
+
+impl GitHubSyncState {
+    fn new() -> Self {
+        Self {
+            etag: Mutex::new(None),
+            remote_sha: Mutex::new(String::new()),
+            local_dirty: Mutex::new(false),
+        }
+    }
+}
 
 fn get_default_todos_file_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app_handle
@@ -111,7 +158,16 @@ fn save_todos_to_file(app_handle: &AppHandle, db_path: &State<DatabasePath>, tod
         .map_err(|e| format!("Failed to serialize todos: {}", e))?;
 
     fs::write(&file_path, content)
-        .map_err(|e| format!("Failed to write todos file: {}", e))
+        .map_err(|e| format!("Failed to write todos file: {}", e))?;
+
+    // Mark that local todos differ from the last-pushed state
+    if let Some(sync_state) = app_handle.try_state::<GitHubSyncState>() {
+        if let Ok(mut dirty) = sync_state.local_dirty.lock() {
+            *dirty = true;
+        }
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -518,6 +574,174 @@ fn launch_workspace(payload: LaunchWorkspacePayload) -> Result<(), String> {
     Ok(())
 }
 
+// ── Settings file helpers ─────────────────────────────────────────────────
+
+fn get_settings_file_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    fs::create_dir_all(&dir)
+        .map_err(|e| format!("Failed to create app data dir: {}", e))?;
+    Ok(dir.join("settings.json"))
+}
+
+// ── GitHub sync commands ──────────────────────────────────────────────────
+
+#[tauri::command]
+fn get_github_sync_config(app_handle: AppHandle) -> Result<GitHubSyncConfig, String> {
+    let path = get_settings_file_path(&app_handle)?;
+    if !path.exists() {
+        return Ok(GitHubSyncConfig::default());
+    }
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read settings: {}", e))?;
+    if content.trim().is_empty() {
+        return Ok(GitHubSyncConfig::default());
+    }
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse settings: {}", e))
+}
+
+#[tauri::command]
+fn save_github_sync_config(
+    app_handle: AppHandle,
+    sync_state: State<GitHubSyncState>,
+    config: GitHubSyncConfig,
+) -> Result<(), String> {
+    // Invalidate ETag so the next sync does a full fetch with the new config.
+    let mut etag = sync_state.etag.lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+    *etag = None;
+
+    let path = get_settings_file_path(&app_handle)?;
+    let content = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    fs::write(&path, content)
+        .map_err(|e| format!("Failed to write settings: {}", e))
+}
+
+fn build_commit_message(trigger: &str, hostname: &str) -> String {
+    format!("Tick Later sync from {hostname}\n\nTrigger: {trigger}")
+}
+
+fn get_hostname() -> String {
+    hostname::get()
+        .ok()
+        .and_then(|h| h.into_string().ok())
+        .unwrap_or_else(|| "unknown-host".to_string())
+}
+
+/// Fetch from GitHub, merge with local, push merged result back.
+/// `trigger` describes what initiated this sync: "manual", "startup", "periodic", or "settings-saved".
+/// Returns a SyncReport describing what changed.
+#[tauri::command]
+async fn sync_with_github(
+    app_handle: AppHandle,
+    db_path: State<'_, DatabasePath>,
+    sync_state: State<'_, GitHubSyncState>,
+    trigger: String,
+) -> Result<github_sync::SyncReport, String> {
+    let config = get_github_sync_config(app_handle.clone())?;
+
+    if !config.enabled {
+        return Err("GitHub sync is not enabled".to_string());
+    }
+    if config.token.is_empty() || config.repo.is_empty() {
+        return Err("GitHub sync is not fully configured".to_string());
+    }
+
+    let hostname = get_hostname();
+
+    let etag = {
+        let guard = sync_state.etag.lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        guard.clone()
+    };
+
+    let fetch_result = github_sync::fetch_remote(&config, etag.as_deref()).await?;
+
+    match fetch_result {
+        None => {
+            // 304: remote hasn't changed — push local edits if any
+            let is_dirty = *sync_state.local_dirty.lock()
+                .map_err(|e| format!("Lock error: {}", e))?;
+
+            if !is_dirty {
+                return Ok(github_sync::SyncReport {
+                    pulled: 0, pushed: 0, conflicts_resolved: 0, unchanged: true,
+                });
+            }
+
+            let cached_sha = sync_state.remote_sha.lock()
+                .map_err(|e| format!("Lock error: {}", e))?.clone();
+
+            let local_todos = load_todos_from_file(&app_handle, &db_path)?;
+            let pushed = local_todos.len();
+            let msg = build_commit_message("local-change", &hostname);
+            let new_sha = github_sync::push_remote(&config, &local_todos, &cached_sha, &msg).await?;
+
+            // Invalidate ETag so the next poll does a full fetch and picks up the new SHA
+            *sync_state.etag.lock().map_err(|e| format!("Lock error: {}", e))? = None;
+            *sync_state.remote_sha.lock().map_err(|e| format!("Lock error: {}", e))? = new_sha;
+            *sync_state.local_dirty.lock().map_err(|e| format!("Lock error: {}", e))? = false;
+
+            Ok(github_sync::SyncReport {
+                pulled: 0, pushed, conflicts_resolved: 0, unchanged: false,
+            })
+        }
+        Some((remote_todos, sha, new_etag)) => {
+            let local_todos = load_todos_from_file(&app_handle, &db_path)?;
+            let (merged, conflicts, new_from_remote, local_only) =
+                github_sync::merge(local_todos, remote_todos);
+
+            let has_remote_changes = new_from_remote > 0 || conflicts > 0;
+            let needs_push = has_remote_changes || local_only > 0;
+
+            // Apply remote changes to local file only when the remote brought something new
+            if has_remote_changes {
+                save_todos_to_file(&app_handle, &db_path, &merged)?;
+            }
+
+            let new_sha = if needs_push {
+                let msg = build_commit_message(&trigger, &hostname);
+                github_sync::push_remote(&config, &merged, &sha, &msg).await?
+            } else {
+                sha  // nothing to push; cache the current remote SHA for future dirty pushes
+            };
+
+            *sync_state.etag.lock().map_err(|e| format!("Lock error: {}", e))?
+                = if new_etag.is_empty() { None } else { Some(new_etag) };
+            *sync_state.remote_sha.lock().map_err(|e| format!("Lock error: {}", e))? = new_sha;
+            if needs_push {
+                *sync_state.local_dirty.lock().map_err(|e| format!("Lock error: {}", e))? = false;
+            }
+
+            Ok(github_sync::SyncReport {
+                pulled: new_from_remote,
+                pushed: if needs_push { merged.len() } else { 0 },
+                conflicts_resolved: conflicts,
+                unchanged: !needs_push,
+            })
+        }
+    }
+}
+
+/// Fetch-only connection test. Returns the number of todos found on GitHub.
+#[tauri::command]
+async fn test_github_connection(config: GitHubSyncConfig) -> Result<usize, String> {
+    if !github_sync::check_repo_exists(&config).await? {
+        return Err(format!(
+            "Repository '{}' not found. Create it on GitHub first (can be private).",
+            config.repo
+        ));
+    }
+    match github_sync::fetch_remote(&config, None).await? {
+        Some((todos, _, _)) => Ok(todos.len()),
+        None => Ok(0),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -525,6 +749,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(DatabasePath(Mutex::new(None)))
         .manage(TerminalState(Mutex::new(TerminalManager::new())))
+        .manage(GitHubSyncState::new())
         .invoke_handler(tauri::generate_handler![
             load_todos,
             save_todo,
@@ -534,6 +759,10 @@ pub fn run() {
             switch_database,
             get_current_database_path,
             create_new_database,
+            get_github_sync_config,
+            save_github_sync_config,
+            sync_with_github,
+            test_github_connection,
             create_terminal_session,
             write_to_terminal,
             resize_terminal,

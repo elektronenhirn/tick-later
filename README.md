@@ -8,14 +8,15 @@ Built with Tauri, Vue 3, and TypeScript.
 
 ## Features
 
-- **Time-based organization** - Tasks are automatically sorted into time slots: Next 2 Hours, 2-4 Hours, Tomorrow, and Next Week
+- **Time-based organization** - Tasks automatically sort into four buckets: Next 2 Hours, Today, Tomorrow & Later, and Next Week+
 - **Drag and drop** - Reschedule tasks by dragging them between time slots
 - **Quick scheduling** - Preset buttons for common scheduling patterns
 - **Integrated terminal** - Open a terminal session for any task to run commands in context
 - **Virtual desktop pinning** - Associate tasks with virtual desktops and switch to them with one click (Linux only)
 - **Clickable URLs** - Links in task titles and notes open in your default browser
 - **Notebook aesthetic** - Clean, paper-like design with a focus on readability
-- **Local storage** - All data stored locally on your machine
+- **Local-first storage** - All data stored in a plain JSON file on your machine — no account, no cloud, no subscription required
+- **Optional GitHub sync** - Mirror your todos to a private GitHub repository for automatic backup and multi-device access. Uses a fine-grained personal access token scoped to a single repo — no third-party server involved
 
 ## Installation
 

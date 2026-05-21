@@ -27,6 +27,9 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 portable-pty = "0.8"
 tokio = { version = "1", features = ["sync"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+base64 = "0.22"
+hostname = "0.4"
 
 # Linux virtual desktop support (X11 EWMH)
 [target.'cfg(target_os = "linux")'.dependencies]

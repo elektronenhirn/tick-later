@@ -25,6 +25,7 @@ const props = defineProps<{
   appVersion?: string;
   highlightedTodoId?: string | null;
   terminalBusyStates?: Map<string, boolean>;
+  syncRepo?: string;  // set when GitHub sync is enabled
 }>();
 
 const emit = defineEmits<{
@@ -532,7 +533,18 @@ function handleLaunchWorkspace(todo: Todo) {
 
     <!-- Footer Info -->
     <footer class="app-footer">
-      <div class="footer-row" v-if="databasePath">
+      <div class="footer-row" v-if="syncRepo">
+        <span class="footer-label">Database:</span>
+        <a
+          :href="`https://github.com/${syncRepo}`"
+          target="_blank"
+          rel="noopener"
+          class="footer-value footer-value--link"
+        >github.com/{{ syncRepo }}</a>
+        <span class="footer-separator">|</span>
+        <span class="footer-value footer-value--secondary">{{ databasePath }}</span>
+      </div>
+      <div class="footer-row" v-else-if="databasePath">
         <span class="footer-label">Database:</span>
         <span class="footer-value">{{ databasePath }}</span>
       </div>
@@ -973,5 +985,21 @@ function handleLaunchWorkspace(todo: Todo) {
 
 .footer-link svg {
   opacity: 0.7;
+}
+
+.footer-value--link {
+  color: var(--accent);
+  text-decoration: none;
+  font-family: var(--font-mono);
+}
+.footer-value--link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footer-value--secondary {
+  color: var(--ink-light);
+  opacity: 0.6;
+  font-size: 0.75rem;
 }
 </style>

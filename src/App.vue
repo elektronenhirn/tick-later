@@ -4,9 +4,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getVersion } from "@tauri-apps/api/app";
 import type { Todo, WorkspaceApp } from "./types/todo";
+import type { GitHubSyncConfig, SyncReport } from "./types/github-sync";
+import { DEFAULT_SYNC_CONFIG } from "./types/github-sync";
 import TodoList from "./components/TodoList.vue";
 import TodoForm from "./components/TodoForm.vue";
 import TerminalPanel from "./components/TerminalPanel.vue";
+import GitHubSyncSettings from "./components/GitHubSyncSettings.vue";
 
 const todos = ref<Todo[]>([]);
 const loading = ref(true);
@@ -20,6 +23,14 @@ const terminalVisible = ref(false);
 const activeTerminalTodo = ref<Todo | null>(null);
 const terminalBusyStates = ref<Map<string, boolean>>(new Map());
 let terminalPollInterval: number | null = null;
+
+// GitHub sync state
+const syncConfig = ref<GitHubSyncConfig>({ ...DEFAULT_SYNC_CONFIG });
+const syncStatus = ref<"idle" | "syncing" | "success" | "error">("idle");
+const syncError = ref<string | null>(null);
+const showSyncSettings = ref(false);
+let syncPollInterval: number | null = null;
+let syncDebounceTimer: number | null = null;
 
 // Search state
 const showSearch = ref(false);
@@ -39,6 +50,51 @@ async function loadTodos() {
   }
 }
 
+async function doSync(trigger: string = "manual") {
+  if (syncStatus.value === "syncing") return;
+  syncStatus.value = "syncing";
+  syncError.value = null;
+  try {
+    const report = await invoke<SyncReport>("sync_with_github", { trigger });
+    if (!report.unchanged) {
+      await loadTodos();
+    }
+    syncStatus.value = "success";
+    setTimeout(() => { syncStatus.value = "idle"; }, 3000);
+  } catch (e) {
+    syncStatus.value = "error";
+    syncError.value = String(e);
+    setTimeout(() => { syncStatus.value = "idle"; }, 5000);
+  }
+}
+
+function scheduleDebouncedSync() {
+  if (!syncConfig.value.enabled) return;
+  if (syncDebounceTimer !== null) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = window.setTimeout(() => doSync("local-change"), 3000);
+}
+
+function startSyncPolling() {
+  if (syncPollInterval !== null || syncConfig.value.poll_interval_secs === 0) return;
+  syncPollInterval = window.setInterval(() => doSync("periodic"), syncConfig.value.poll_interval_secs * 1000);
+}
+
+function stopSyncPolling() {
+  if (syncPollInterval !== null) {
+    clearInterval(syncPollInterval);
+    syncPollInterval = null;
+  }
+}
+
+async function onSyncSettingsSaved() {
+  syncConfig.value = await invoke<GitHubSyncConfig>("get_github_sync_config");
+  stopSyncPolling();
+  if (syncConfig.value.enabled) {
+    await doSync("settings-saved");
+    startSyncPolling();
+  }
+}
+
 async function handleAddTodo(todoData: { title: string; description?: string; revisitAt: string; virtualDesktop?: number; color?: string; workspaceApps?: WorkspaceApp[] }) {
   try {
     const payload = {
@@ -52,6 +108,7 @@ async function handleAddTodo(todoData: { title: string; description?: string; re
     const newTodo = await invoke<Todo>("save_todo", { payload });
     todos.value.push(newTodo);
     showTodoForm.value = false;
+    scheduleDebouncedSync();
   } catch (e) {
     error.value = `Failed to add todo: ${e}`;
   }
@@ -70,6 +127,7 @@ async function handleToggleComplete(todoId: string) {
         todo.completed_at = undefined;
       }
     }
+    scheduleDebouncedSync();
   } catch (e) {
     error.value = `Failed to toggle todo: ${e}`;
   }
@@ -86,6 +144,7 @@ async function handleUpdateTodo(todoData: { id: string; revisitAt: string }) {
     if (todo) {
       todo.revisit_at = todoData.revisitAt;
     }
+    scheduleDebouncedSync();
   } catch (e) {
     error.value = `Failed to update todo: ${e}`;
   }
@@ -112,6 +171,7 @@ async function handleEditTodo(todoData: { id: string; title: string; description
       todos.value[index] = updatedTodo;
     }
     closeEditForm();
+    scheduleDebouncedSync();
   } catch (e) {
     error.value = `Failed to update todo: ${e}`;
   }
@@ -129,6 +189,7 @@ async function handleDeleteTodo(todoId: string) {
   try {
     await invoke("delete_todo", { id: todoId });
     todos.value = todos.value.filter(t => t.id !== todoId);
+    scheduleDebouncedSync();
   } catch (e) {
     error.value = `Failed to delete todo: ${e}`;
   }
@@ -350,6 +411,12 @@ onMounted(async () => {
   await loadTodos();
   currentDbPath.value = await invoke<string>("get_current_database_path");
   appVersion.value = await getVersion();
+  // Load sync config and kick off startup sync + polling if enabled
+  syncConfig.value = await invoke<GitHubSyncConfig>("get_github_sync_config");
+  if (syncConfig.value.enabled) {
+    doSync("startup");
+    startSyncPolling();
+  }
   // Start polling terminal busy states
   startTerminalPolling();
 });
@@ -358,6 +425,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('e2e-database-switched', handleE2eDatabaseSwitch as EventListener);
   stopTerminalPolling();
+  stopSyncPolling();
 });
 </script>
 
@@ -379,6 +447,46 @@ onUnmounted(() => {
         </div>
         <div class="header-actions">
           <div class="header-buttons">
+            <!-- GitHub sync button -->
+            <button
+              @click="syncConfig.enabled ? doSync() : (showSyncSettings = true)"
+              class="header-btn header-btn--sync"
+              :class="{
+                'header-btn--syncing': syncStatus === 'syncing',
+                'header-btn--success': syncStatus === 'success',
+                'header-btn--error':   syncStatus === 'error',
+              }"
+              :title="syncConfig.enabled ? 'Sync with GitHub' : 'Set up GitHub sync'"
+            >
+              <!-- spinner while syncing -->
+              <svg v-if="syncStatus === 'syncing'" class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+              <!-- check on success -->
+              <svg v-else-if="syncStatus === 'success'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+              <!-- warning on error -->
+              <svg v-else-if="syncStatus === 'error'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <!-- cloud icon at idle -->
+              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+              </svg>
+            </button>
+            <!-- Gear / settings button (always visible when sync is enabled) -->
+            <button
+              v-if="syncConfig.enabled"
+              @click="showSyncSettings = true"
+              class="header-btn"
+              title="GitHub sync settings"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
             <button @click="openSearch" class="header-btn" title="Search (Ctrl+F)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
@@ -413,6 +521,12 @@ onUnmounted(() => {
       <button @click="loadTodos" class="retry-link">Try again</button>
     </div>
 
+    <div v-if="syncError" class="error-notice error-notice--sync">
+      <span class="error-stamp">SYNC</span>
+      <span class="error-text">{{ syncError }}</span>
+      <button @click="syncError = null" class="retry-link">Dismiss</button>
+    </div>
+
     <div v-if="loading" class="loading-state">
       <div class="loading-spinner"></div>
       <span>Opening journal...</span>
@@ -425,6 +539,7 @@ onUnmounted(() => {
         :app-version="appVersion"
         :highlighted-todo-id="highlightedTodoId"
         :terminal-busy-states="terminalBusyStates"
+        :sync-repo="syncConfig.enabled ? syncConfig.repo : undefined"
         @toggle-complete="handleToggleComplete"
         @delete-todo="handleDeleteTodo"
         @add-todo="handleAddTodo"
@@ -506,6 +621,27 @@ onUnmounted(() => {
     </Transition>
 
     </main>
+
+    <!-- GitHub Sync Settings Modal -->
+    <Transition name="modal">
+      <div v-if="showSyncSettings" class="modal-overlay" @mousedown.self="showSyncSettings = false">
+        <div class="modal-content modal-content--sync">
+          <div class="modal-header">
+            <h2>GitHub Sync</h2>
+            <button @click="showSyncSettings = false" class="close-btn" title="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <GitHubSyncSettings
+            v-model="syncConfig"
+            @close="showSyncSettings = false"
+            @saved="onSyncSettingsSaved(); showSyncSettings = false"
+          />
+        </div>
+      </div>
+    </Transition>
 
     <!-- Floating Compose Button -->
     <button @click="openTodoForm" class="compose-btn" title="New entry (Ctrl+Shift+N)">
@@ -654,6 +790,27 @@ onUnmounted(() => {
   background: var(--paper-alt);
 }
 
+.header-btn--syncing {
+  border-color: var(--ink-light);
+  color: var(--ink-light);
+}
+.header-btn--success {
+  border-color: var(--success);
+  color: var(--success);
+}
+.header-btn--error {
+  border-color: var(--urgent);
+  color: var(--urgent);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 .header-date {
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -709,6 +866,15 @@ onUnmounted(() => {
   padding: 4px 8px;
   border: 2px solid var(--error);
   transform: rotate(-2deg);
+}
+
+.error-notice--sync .error-stamp {
+  color: var(--urgent);
+  border-color: var(--urgent);
+}
+
+.error-notice--sync {
+  border-color: var(--urgent);
 }
 
 .error-text {
@@ -869,6 +1035,12 @@ onUnmounted(() => {
 /* Search Modal */
 .modal-content--search {
   max-width: 480px;
+}
+
+/* GitHub Sync Settings Modal */
+.modal-content--sync {
+  width: 680px;
+  max-width: 95vw;
 }
 
 .search-form {

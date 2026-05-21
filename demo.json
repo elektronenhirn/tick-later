@@ -4,7 +4,7 @@
     "title": "Review pull request from Sarah",
     "description": "Check the authentication refactor before standup",
     "_demo_relative_hours": 1,
-    "revisit_at": "2026-05-20T12:31:14.833Z",
+    "revisit_at": "2026-05-21T08:59:24.361Z",
     "completed": false,
     "created_at": "2025-01-24T14:00:00Z",
     "virtual_desktop": 1
@@ -14,7 +14,7 @@
     "title": "Call dentist to reschedule appointment",
     "description": null,
     "_demo_relative_hours": 1.5,
-    "revisit_at": "2026-05-20T13:01:14.833Z",
+    "revisit_at": "2026-05-21T09:29:24.361Z",
     "completed": false,
     "created_at": "2025-01-23T09:00:00Z"
   },
@@ -23,7 +23,7 @@
     "title": "Finish expense report",
     "description": "Q4 travel reimbursements",
     "_base_revisit_at": "2026-01-26T06:00:00Z",
-    "revisit_at": "2026-05-21T06:00:00.000Z",
+    "revisit_at": "2026-05-22T06:00:00.000Z",
     "completed": false,
     "created_at": "2025-01-20T11:00:00Z"
   },
@@ -32,7 +32,7 @@
     "title": "Reply to Mom's email",
     "description": null,
     "_demo_relative_hours": 5,
-    "revisit_at": "2026-05-20T16:31:14.833Z",
+    "revisit_at": "2026-05-21T12:59:24.361Z",
     "completed": false,
     "created_at": "2025-01-24T19:00:00Z"
   },
@@ -41,7 +41,7 @@
     "title": "Prepare slides for Friday presentation",
     "description": "Team quarterly review - focus on metrics and roadmap",
     "_base_revisit_at": "2026-01-26T09:00:00Z",
-    "revisit_at": "2026-05-21T09:00:00.000Z",
+    "revisit_at": "2026-05-22T09:00:00.000Z",
     "completed": false,
     "created_at": "2025-01-22T10:00:00Z",
     "virtual_desktop": 0
@@ -51,7 +51,7 @@
     "title": "Book flights for conference",
     "description": "Check Southwest and United for best prices to Austin",
     "_base_revisit_at": "2026-01-27T06:00:00Z",
-    "revisit_at": "2026-05-22T06:00:00.000Z",
+    "revisit_at": "2026-05-23T06:00:00.000Z",
     "completed": false,
     "created_at": "2025-01-21T16:00:00Z"
   },
@@ -60,7 +60,7 @@
     "title": "Start learning Rust",
     "description": "Work through The Rust Book chapters 1-4",
     "_base_revisit_at": "2026-02-02T09:00:00Z",
-    "revisit_at": "2026-05-28T09:00:00.000Z",
+    "revisit_at": "2026-05-29T09:00:00.000Z",
     "completed": false,
     "created_at": "2025-01-15T14:00:00Z",
     "virtual_desktop": 2
@@ -70,7 +70,7 @@
     "title": "Plan birthday dinner for Alex",
     "description": "Reserve table at Italian place, invite the usual crew",
     "_demo_relative_hours": 7,
-    "revisit_at": "2026-05-20T18:31:14.833Z",
+    "revisit_at": "2026-05-21T14:59:24.361Z",
     "completed": false,
     "created_at": "2025-01-20T21:00:00Z"
   },
@@ -79,7 +79,7 @@
     "title": "Renew car registration",
     "description": null,
     "_base_revisit_at": "2026-02-03T09:00:00Z",
-    "revisit_at": "2026-05-29T09:00:00.000Z",
+    "revisit_at": "2026-05-30T09:00:00.000Z",
     "completed": false,
     "created_at": "2025-01-18T09:00:00Z"
   },
@@ -88,7 +88,7 @@
     "title": "Submit timesheet",
     "description": null,
     "_base_revisit_at": "2025-01-24T17:00:00Z",
-    "revisit_at": "2025-05-19T17:00:00.000Z",
+    "revisit_at": "2025-05-20T17:00:00.000Z",
     "completed": true,
     "created_at": "2025-01-24T09:00:00Z"
   },
@@ -97,7 +97,7 @@
     "title": "Order new headphones",
     "description": "Sony WH-1000XM5 from Amazon",
     "_base_revisit_at": "2025-01-23T12:00:00Z",
-    "revisit_at": "2025-05-18T12:00:00.000Z",
+    "revisit_at": "2025-05-19T12:00:00.000Z",
     "completed": true,
     "created_at": "2025-01-22T20:00:00Z"
   }
